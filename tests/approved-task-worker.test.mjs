@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {processApprovedTask} from '../lib/approved-task-worker.mjs';
+function mock(claimed=true){let count=0;return {get count(){return count},prepare(){return {bind(){return {first:async()=>{count++;return claimed?{id:'t1',attempt_count:1}:null}}}}}}}
+const fields={taskId:'t1',leaseToken:'lease-token-123456789',leaseUntil:'2099-10-15T20:00:00Z'};
+test('unauthenticated workers do not claim or execute',async()=>{const db=mock();await assert.rejects(()=>processApprovedTask(db,{...fields,executor:async()=>({verified:true,evidence:'complete work'})}),/authenticated_worker_required/);assert.equal(db.count,0)});
+test('unclaimable work cannot execute',async()=>{const db=mock(false);let ran=false;const result=await processApprovedTask(db,{...fields,authorized:true,executor:async()=>{ran=true}});assert.equal(ran,false);assert.equal(result.status,'not-claimed')});
+test('execution without evidence cannot declare completion',async()=>{const db=mock();const result=await processApprovedTask(db,{...fields,authorized:true,executor:async()=>({verified:false})});assert.equal(result.verified,false);assert.equal(result.status,'requires-review')});
+test('verified response requires database confirmation',async()=>{const db=mock(false);const result=await processApprovedTask(db,{...fields,authorized:true,executor:async()=>({verified:true,evidence:'Long evidence string'})});assert.equal(result.verified,false)});
