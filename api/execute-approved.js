@@ -18,16 +18,18 @@ export default async function handler(req,res){
  const model=policy.model;
  if(!policy.allowed)return respond(res,503,{ok:false,error:'model_not_allowlisted'});
  const result=await withDb(async db=>{
-  // One execution per approved assignment. Atomic claim prevents simultaneous duplicate launches.
-  const updated=await db.query("UPDATE team_tasks SET status='running',updated_at=now() WHERE id=$1 AND approval='approved' AND status='queued' RETURNING id,title,persona",[taskId]);
-  if(!updated.rowCount)return {ok:false,error:'not_approved_or_not_queued',status:409};
-  const task=updated.rows[0];
-  if(!SPECIALISTS.some(p=>p.name===task.persona)){
-   await db.query("UPDATE team_tasks SET status='failed',updated_at=now() WHERE id=$1 AND status='running'",[taskId]);
-   return {ok:false,error:'unknown_registered_persona',status:422};
-  }
-  try{await db.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[taskId,'task.model_started',JSON.stringify({model})])}catch{await db.query("UPDATE team_tasks SET status='failed',updated_at=now() WHERE id=$1 AND status='running'",[taskId]);return {ok:false,error:'audit_write_failed',status:503}}
-  return {ok:true,task};
+  // Claim and initial audit event commit atomically; never start a provider call without an audit record.
+  const client=await db.connect();
+  try{
+   await client.query('BEGIN');
+   const updated=await client.query("UPDATE team_tasks SET status='running',updated_at=now() WHERE id=$1 AND approval='approved' AND status='queued' RETURNING id,title,persona",[taskId]);
+   if(!updated.rowCount){await client.query('ROLLBACK');return {ok:false,error:'not_approved_or_not_queued',status:409}}
+   const task=updated.rows[0];
+   if(!SPECIALISTS.some(p=>p.name===task.persona)){await client.query('ROLLBACK');return {ok:false,error:'unknown_registered_persona',status:422}}
+   await client.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[taskId,'task.model_started',JSON.stringify({model})]);
+   await client.query('COMMIT');
+   return {ok:true,task};
+  }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
  });
  if(!result.ok)return respond(res,result.status||503,{ok:false,error:result.error});
  const task=result.task,controller=new AbortController();
