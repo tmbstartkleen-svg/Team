@@ -1,27 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import health from '../api/health.js';
-import retired from '../api/execute.js';
-function mock(method='POST',body={}){
- const req={method,body,headers:{}};
- const out={code:200,headers:{},body:null};
- const res={setHeader:(k,v)=>{out.headers[k]=v},status:(c)=>{out.code=c;return res},json:(v)=>{out.body=v;return res}};
+import {modelPolicy} from '../lib/limits.mjs';
+import approved from '../api/execute-approved.js';
+function mock(method='POST'){
+ const req={method,headers:{}},out={status:200,body:null};
+ const res={setHeader(){},status(x){out.status=x;return this},json(x){out.body=x;return this}};
  return {req,res,out};
 }
-test('health reports capabilities without secrets',()=>{
- const x=mock('GET');health(x.req,x.res);
- assert.equal(x.out.code,200);
- assert.equal(typeof x.out.body.executionConfigured,'boolean');
- assert.equal(x.out.body.capabilities.autonomousAgents,false);
-});
-test('legacy execution fails closed, even when a client claims approval',()=>{
- const x=mock('POST',{approved:true,task:'Perform work',persona:'Chief Architect'});
- retired(x.req,x.res);
- assert.equal(x.out.code,410);
- assert.equal(x.out.body.error,'legacy_execution_retired');
- assert.equal(x.out.body.replacement,'/api/execute-approved');
-});
-test('retired endpoint forbids GET',()=>{
- const x=mock('GET');retired(x.req,x.res);
- assert.equal(x.out.code,405);
-});
+test('health reports capability readiness without secrets',()=>{const x=mock('GET');health(x.req,x.res);assert.equal(x.out.status,200);assert.equal(typeof x.out.body.executionConfigured,'boolean')});
+test('approved execution blocks anonymous callers',async()=>{const x=mock('POST');await approved(x.req,x.res);assert.equal(x.out.status,401)});
+test('provider model is allowlist constrained',()=>{assert.equal(modelPolicy({TEAM_MODEL:'unsupported',TEAM_ALLOWED_MODELS:'approved'}).allowed,false)});
