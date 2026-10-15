@@ -16,3 +16,5 @@ test('no legacy execution endpoint',()=>{
  const functions=readdirSync(new URL('../api/',import.meta.url));
  assert.ok(!functions.includes('execute.js'));
 });
+
+test('provider response is bounded during streaming',()=>{const source=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(source,/bytes>1000000/);assert.match(source,/reader\.cancel\(\)/)});
