@@ -85,6 +85,25 @@ jobs:
           else
             echo 'Owner collaboration remains disabled; TEAM_OWNER_API_TOKEN not configured' >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Verify deployed D1 binding when configured
+        if: steps.credentials.outputs.ready == 'true' && success()
+        env:
+          TEAM_D1_DATABASE_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+        run: |
+          set -eu
+          if [ -z "$TEAM_D1_DATABASE_ID" ]; then
+            echo 'TEAM D1 remains unconfigured; readiness probe not required' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          URL='https://atlas-team.tmbstartkleen.workers.dev/api/database-readiness'
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 "$URL" > /tmp/team-d1-readiness.json
+          node - <<'NODE'
+          const r=require('/tmp/team-d1-readiness.json');
+          if(r.ok!==true||r.database?.bindingConfigured!==true)throw Error('TEAM D1 binding is not active on the deployed Worker');
+          if(r.database.schemaVerified!==true)throw Error('TEAM D1 exists but required migrations are incomplete');
+          console.log('TEAM D1 binding and schema verified on deployed Worker');
+          NODE
+          echo 'TEAM D1 binding and schema verified on live Worker' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify published Cloudflare edge
         if: steps.credentials.outputs.ready == 'true' && success()
         env:
