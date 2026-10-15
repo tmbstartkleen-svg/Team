@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {prepareBlockerEscalation,loadBlockedTasksForReview} from '../lib/task-escalation.mjs';
+const base={project:'TEAM',taskId:'task1',persona:'QA Engineer'};
+test('ordinary blockers become project-team drafts, not sent messages',()=>{const x=prepareBlockerEscalation({...base,reason:'Need help reviewing validation'});assert.equal(x.channel,'internal-team-group');assert.equal(x.draft.visibility,'project-team');assert.equal(x.deliveryConfirmed,false)});
+test('owner decisions and secrets are routed privately',()=>{const x=prepareBlockerEscalation({...base,reason:'Need deployment credential'});assert.equal(x.channel,'owner-direct-message');assert.equal(x.draft.visibility,'owner-private');assert.equal(x.taskComplete,false)});
+test('blocked task query is parameterized and bounded',async()=>{let call;const db={prepare(sql){return {bind(...args){call={sql,args};return {all:async()=>({results:[]})}}}}};await loadBlockedTasksForReview(db,{projectId:'TEAM',limit:999});assert.equal(call.args[0],'TEAM');assert.equal(call.args[1],50);assert.match(call.sql,/state='blocked'/)});
