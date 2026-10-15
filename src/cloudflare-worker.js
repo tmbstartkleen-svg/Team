@@ -8,6 +8,10 @@ export default {
    if(request.method!=='GET')return new Response(JSON.stringify({ok:false,error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json','allow':'GET','cache-control':'no-store'}});
    return new Response(JSON.stringify({ok:true,hosting:'cloudflare',source:'native-edge',microsoft365:{connected:false,monitoringActive:false,services:['Outlook Mail','Microsoft Teams','Outlook Calendar','Microsoft To Do','OneDrive','SharePoint'],nextStep:'owner-consented-oauth-connection'},backend:{type:'vercel-standby',verified:false},note:'Connection states are not live account checks'}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   }
+  if(url.pathname==='/api/workforce'){
+   if(request.method!=='GET')return new Response(JSON.stringify({ok:false,error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json','allow':'GET','cache-control':'no-store'}});
+   return new Response(JSON.stringify({ok:true,source:'cloudflare-edge',authority:'human-project-owner',execution:'approval-required',replication:'owner-proposal-only',personas:[{id:'chief-of-staff',role:'Chief of Staff',scope:'coordinate and prioritize'},{id:'microsoft-triage',role:'Microsoft 365 Triage',scope:'propose important messages and assignments'},{id:'security-review',role:'Security Reviewer',scope:'flag authorization and deployment risks'},{id:'release-review',role:'Release Reviewer',scope:'verify CI and production deployments'}],agentsRunning:false,requiresConfiguredModelAndStorage:true}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
+  }
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   if(!BACKEND_PATH.test(url.pathname))return new Response('Not found',{status:404});
   if(!['GET','POST','OPTIONS'].includes(request.method))return new Response('Method not allowed',{status:405});
