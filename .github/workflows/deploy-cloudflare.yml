@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '15 14 * * *'
 concurrency:
   group: atlas-team-cloudflare-production
   cancel-in-progress: true
@@ -31,12 +33,17 @@ jobs:
             echo "::notice::Cloudflare deployment not configured; add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets to TEAM."
           fi
       - name: Require Cloudflare credentials
-        if: steps.credentials.outputs.ready != 'true'
+        if: steps.credentials.outputs.ready != 'true' && github.event_name != 'schedule'
         run: |
           echo '## Cloudflare production: BLOCKED' >> "$GITHUB_STEP_SUMMARY"
           echo 'Verification passed; publication cannot proceed until TEAM repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are configured.' >> "$GITHUB_STEP_SUMMARY"
           echo '::error::Cloudflare credentials missing; this deployment job must not report success.'
           exit 1
+      - name: Scheduled credential readiness report
+        if: steps.credentials.outputs.ready != 'true' && github.event_name == 'schedule'
+        run: |
+          echo '## Cloudflare still awaiting credentials' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Scheduled check only; no deployment attempted.' >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy Cloudflare Worker
         if: steps.credentials.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v3
