@@ -1,3 +1,4 @@
+import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
 import {inspectTeamDatabase} from '../lib/d1-readiness.mjs';
 import {buildPlan} from '../lib/orchestration.mjs';
 const BACKEND_PATH=/^\/api\/[a-z0-9-]+\/?$/i;
@@ -7,6 +8,7 @@ export default {
   if(url.pathname==='/__team/health')return new Response(JSON.stringify({ok:true,service:'atlas-team-edge',hosting:'cloudflare',backend:'vercel-standby',backendVerified:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/health'&&request.method==='GET')return new Response(JSON.stringify({ok:true,service:'atlas-team',hosting:'cloudflare',mode:'edge-ui-with-standby-api',productionOperational:false,modelConfigured:false,executionConfigured:false,databaseSchemaVerified:false,backendVerified:false,microsoft365Connected:false,monitoringActive:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/database-readiness'&&request.method==='GET'){const data=await inspectTeamDatabase(env.TEAM_DB);return new Response(JSON.stringify({ok:true,hosting:'cloudflare',database:data,agentsActive:false}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}})}
+  if(url.pathname==='/api/owner-collaboration')return handleOwnerCollaboration(request,env);
   if(url.pathname==='/api/integrations'){
    if(request.method!=='GET')return new Response(JSON.stringify({ok:false,error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json','allow':'GET','cache-control':'no-store'}});
    return new Response(JSON.stringify({ok:true,hosting:'cloudflare',source:'native-edge',microsoft365:{connected:false,monitoringActive:false,services:['Outlook Mail','Microsoft Teams','Outlook Calendar','Microsoft To Do','OneDrive','SharePoint'],nextStep:'owner-consented-oauth-connection'},gmail:{connected:false,priority:'low',purpose:'optional-side-projects',monitoringActive:false,access:'read-only-consent-required',sendPermission:false},backend:{type:'vercel-standby',verified:false},note:'Connection states are not live account checks'}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
