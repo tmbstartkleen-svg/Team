@@ -5,10 +5,10 @@ import execute from '../api/execute-approved.js';
 
 const TASK='00000000-0000-4000-8000-000000000001';
 function mockResponse(){const out={status:200,body:null};const res={setHeader(){},status(n){out.status=n;return res},json(b){out.body=b;return res}};return {res,out}}
-async function runScenario({provider='success',approved=true}={}){
+async function runScenario({provider='success',approved=true,initialStatus='queued'}={}){
  const oldEnv=Object.fromEntries(['TEAM_ADMIN_TOKEN','OPENAI_API_KEY','TEAM_DATABASE_URL','TEAM_MODEL','TEAM_ALLOWED_MODELS'].map(k=>[k,process.env[k]]));
  const oldConnect=pg.Pool.prototype.connect,oldFetch=globalThis.fetch;
- const state={status:'queued',approval:approved?'approved':'pending',events:[],providerCalls:0,transactions:[]};
+ const state={status:initialStatus,approval:approved?'approved':'pending',events:[],providerCalls:0,transactions:[]};
  pg.Pool.prototype.connect=async function(){
   return {release(){},query:async(sql,params=[])=>{
    if(sql==='BEGIN'||sql==='COMMIT'||sql==='ROLLBACK'){state.transactions.push(sql);return {rows:[],rowCount:0}}
@@ -44,4 +44,18 @@ test('empty model result transitions to failed with audit',async()=>{
 test('provider failure transitions to failed without claiming completion',async()=>{
  const {out,state}=await runScenario({provider:'failed'});
  assert.equal(out.status,502);assert.equal(state.status,'failed');assert.ok(!state.events.includes('task.model_completed'));
+});
+
+test('already-running task cannot trigger another provider request',async()=>{
+ const {out,state}=await runScenario({initialStatus:'running'});
+ assert.equal(out.status,409);assert.equal(state.providerCalls,0);assert.equal(state.status,'running');assert.deepEqual(state.events,[]);
+});
+test('completed task cannot be executed twice',async()=>{
+ const {out,state}=await runScenario({initialStatus:'completed'});
+ assert.equal(out.status,409);assert.equal(state.providerCalls,0);assert.equal(state.status,'completed');assert.deepEqual(state.events,[]);
+});
+test('rejected model output never records successful completion',async()=>{
+ const {state}=await runScenario({provider:'empty'});
+ assert.deepEqual(state.transactions,['BEGIN','COMMIT','BEGIN','COMMIT']);
+ assert.equal(state.events.includes('task.model_completed'),false);
 });
