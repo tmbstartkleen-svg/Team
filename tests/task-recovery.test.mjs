@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {recoverInterruptedTask,resumeRecoveredTask} from '../lib/task-recovery.mjs';
+const now=Date.parse('2026-10-15T15:00:00Z');
+test('active lease is not interrupted',()=>{const x=recoverInterruptedTask({state:'running',lastHeartbeat:'2026-10-15T14:59:30Z'},{now});assert.equal(x.action,'none')});
+test('expired lease pauses and cannot auto-retry',()=>{const x=recoverInterruptedTask({state:'running',lastHeartbeat:'2026-10-15T14:50:00Z'},{now});assert.equal(x.task.state,'blocked');assert.equal(x.requiresOwnerApproval,true);assert.throws(()=>resumeRecoveredTask(x.task,{ownerApproved:true}),/review_and_owner_approval_required/);assert.equal(resumeRecoveredTask(x.task,{ownerApproved:true,reconciled:true}).state,'queued')});
+test('verified and queued work is never mutated by recovery',()=>{assert.equal(recoverInterruptedTask({state:'verified',complete:true},{now}).task.complete,true);assert.equal(recoverInterruptedTask({state:'queued'},{now}).task.state,'queued')});
