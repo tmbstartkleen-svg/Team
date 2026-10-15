@@ -1,14 +1,9 @@
 name: Provision TEAM Dedicated D1
+# Manual dispatch is the explicit owner approval. Never run on push or schedule.
 on:
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: "Type PROVISION-TEAM-D1 to create/prepare the dedicated TEAM database"
-        required: true
-        type: string
 jobs:
   provision:
-    if: inputs.confirm == 'PROVISION-TEAM-D1'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
