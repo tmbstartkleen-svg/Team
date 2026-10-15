@@ -37,7 +37,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -eu
-          npx --yes wrangler@4 d1 migrations apply atlas-team-data --remote --yes
+          npx --yes wrangler@4 d1 migrations apply atlas-team-data --remote
           echo 'TEAM remote D1 migrations completed.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify required TEAM tables and task lease columns
