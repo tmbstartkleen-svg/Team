@@ -18,3 +18,5 @@ test('no legacy execution endpoint',()=>{
 });
 
 test('provider response is bounded during streaming',()=>{const source=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(source,/bytes>1000000/);assert.match(source,/reader\.cancel\(\)/)});
+
+test('model task claim and initial audit are committed in one transaction',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');const from=src.indexOf('// Claim and initial audit');const to=src.indexOf('if(!result.ok)',from);const segment=src.slice(from,to);assert.ok(from>0);assert.match(segment,/BEGIN/);assert.match(segment,/task\.model_started/);assert.match(segment,/COMMIT/);assert.match(segment,/ROLLBACK/);assert.ok(segment.indexOf('task.model_started')<segment.indexOf('COMMIT'))});
