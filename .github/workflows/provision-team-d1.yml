@@ -24,7 +24,7 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           npx --yes wrangler@4 d1 list --json > /tmp/team-d1-list.json
-          node -e 'const a=require("/tmp/team-d1-list.json");if(!Array.isArray(a))process.exit(1);const matches=a.filter(x=>x.name==="atlas-team-data");if(matches.length>1)process.exit(2);console.log(matches.length?"Existing TEAM D1 found":"Dedicated TEAM D1 creation required")'
+          node --input-type=module -e 'import {readFileSync} from "node:fs";import {classifyTeamD1Databases} from "./lib/team-d1-discovery.mjs";const d=classifyTeamD1Databases(JSON.parse(readFileSync("/tmp/team-d1-list.json","utf8")));console.log("TEAM D1 discovery:",d.status,d.name);if(d.status==="review_existing")throw Error("A D1 database named atlas-team exists. Review it before creating another TEAM database.")'
       - name: Create dedicated database only if absent
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
