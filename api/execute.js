@@ -1,37 +1,8 @@
-import {timingSafeEqual} from 'node:crypto';
-import {SPECIALISTS} from '../lib/route.mjs';
-function authorized(candidate,expected){
- if(!candidate||!expected)return false;
- const a=Buffer.from(candidate),b=Buffer.from(expected);
- return a.length===b.length&&timingSafeEqual(a,b);
-}
-function outputText(payload){
- if(typeof payload.output_text==='string')return payload.output_text;
- return (payload.output||[]).flatMap(item=>item.content||[]).filter(x=>x.type==='output_text').map(x=>x.text||'').join('\n');
-}
-export default async function handler(req,res){
+// Deprecated legacy path. Model execution is only available through
+// /api/execute-approved using a persisted, server-approved task.
+export default function handler(req,res){
  res.setHeader('Cache-Control','no-store');
+ res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='POST'){res.setHeader('Allow','POST');return res.status(405).json({ok:false,error:'method_not_allowed'});}
- const token=(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
- if(!process.env.TEAM_ADMIN_TOKEN||!process.env.OPENAI_API_KEY)return res.status(503).json({ok:false,error:'backend_not_configured'});
- if(!authorized(token,process.env.TEAM_ADMIN_TOKEN))return res.status(401).json({ok:false,error:'unauthorized'});
- const {task,persona,approved}=req.body||{};
- const requestId=globalThis.crypto?.randomUUID?.()||null;
- if(req.headers['content-type']&&!String(req.headers['content-type']).toLowerCase().startsWith('application/json'))return res.status(415).json({ok:false,error:'json_required'});
- if(approved!==true)return res.status(403).json({ok:false,error:'explicit_approval_required'});
- if(typeof task!=='string'||task.trim().length<3||task.length>4000)return res.status(400).json({ok:false,error:'invalid_task'});
- if(typeof persona!=='string'||persona.length>100||!SPECIALISTS.some(x=>x.name===persona))return res.status(400).json({ok:false,error:'invalid_persona'});
- const allowedModels=(process.env.TEAM_ALLOWED_MODELS||'gpt-5-mini').split(',').map(x=>x.trim()).filter(Boolean);
- const model=process.env.TEAM_MODEL||'gpt-5-mini';
- if(!allowedModels.includes(model))return res.status(503).json({ok:false,error:'model_not_allowlisted'});
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
- try{
-  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{Authorization:'Bearer '+process.env.OPENAI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model,max_output_tokens:1000,store:false,instructions:'You are the '+persona+' specialist within ATLAS TEAM. Provide useful analysis and proposed steps only. Do not claim to have used tools, accessed files, performed actions, or executed a task. Clearly distinguish recommendations from completed actions.',input:task})});
-  const raw=await response.text();
-  if(raw.length>1000000)return res.status(502).json({ok:false,error:'provider_response_too_large'});
-  let data={};try{data=JSON.parse(raw)}catch{}
-  if(!response.ok)return res.status(502).json({ok:false,error:'model_provider_error',providerStatus:response.status});
-  return res.status(200).json({ok:true,execution:'completed-model-response',persona,model,result:outputText(data),requestId:data.id||requestId});
- }catch(error){return res.status(error.name==='AbortError'?504:502).json({ok:false,error:error.name==='AbortError'?'model_timeout':'model_unavailable'});}
- finally{clearTimeout(timer);}
+ return res.status(410).json({ok:false,error:'legacy_execution_retired',replacement:'/api/execute-approved'});
 }
