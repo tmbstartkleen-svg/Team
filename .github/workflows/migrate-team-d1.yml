@@ -45,3 +45,14 @@ jobs:
           set -eu
           npx --yes wrangler@4 d1 migrations apply atlas-team-data --remote --yes
           echo 'TEAM remote D1 migrations completed.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify required TEAM tables and task lease columns
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='table'" > /tmp/team-schema-tables.json
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "PRAGMA table_info(team_tasks)" > /tmp/team-schema-columns.json
+          node scripts/verify-team-d1-schema.mjs /tmp/team-schema-tables.json /tmp/team-schema-columns.json
+          echo 'Verified required TEAM schema on remote dedicated D1.' >> "$GITHUB_STEP_SUMMARY"
