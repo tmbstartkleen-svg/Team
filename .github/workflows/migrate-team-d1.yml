@@ -43,8 +43,5 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -eu
-          for migration in migrations/0001_team_core.sql migrations/0002_owner_memory.sql migrations/0003_task_leases.sql migrations/0004_task_blockers.sql migrations/0005_message_delivery.sql; do
-            echo "Applying $migration"
-            npx --yes wrangler@4 d1 execute atlas-team-data --remote --file "$migration" --yes
-          done
+          npx --yes wrangler@4 d1 migrations apply atlas-team-data --remote --yes
           echo 'TEAM remote D1 migrations completed.' >> "$GITHUB_STEP_SUMMARY"
