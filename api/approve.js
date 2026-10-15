@@ -12,7 +12,7 @@ export default async function handler(req,res){
   const client=await db.connect();
   try{
    await client.query('BEGIN');
-   const upd=await client.query('UPDATE team_tasks SET approval=$1,approved_at=CASE WHEN $1=\'approved\' THEN now() ELSE null END,updated_at=now() WHERE id=$2 AND approval=\'pending\' RETURNING id,approval,status',[decision,taskId]);
+   const upd=await client.query('UPDATE team_tasks SET approval=$1,approved_at=CASE WHEN $1=\'approved\' THEN now() ELSE null END,updated_at=now() WHERE id=$2 AND approval=\'pending\' AND status=\'queued\' RETURNING id,approval,status',[decision,taskId]);
    if(!upd.rowCount){await client.query('ROLLBACK');return {ok:false,error:'not_found_or_already_decided',status:409}}
    await client.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[taskId,'task.'+decision,JSON.stringify({decision})]);
    await client.query('COMMIT');
