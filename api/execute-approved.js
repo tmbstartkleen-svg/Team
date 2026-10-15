@@ -44,7 +44,7 @@ export default async function handler(req,res){
   else{raw=await response.text();if(Buffer.byteLength(raw)>1000000)throw Error('provider_response_too_large')}
   if(!response.ok)throw Error('provider_failure');
   const data=JSON.parse(raw);
-  if(data.status==='failed'||data.status==='incomplete'||data.error)throw Error('provider_incomplete');
+  if(data.status!=='completed'||data.error)throw Error('provider_incomplete');
   const text=outputText(data);
   if(!text.trim())throw Error('provider_empty_output');
   const record=await withDb(async db=>{
