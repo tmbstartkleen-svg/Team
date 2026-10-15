@@ -53,6 +53,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+          wranglerVersion: '4'
       - name: Verify published Cloudflare edge
         if: steps.credentials.outputs.ready == 'true' && success()
         env:
