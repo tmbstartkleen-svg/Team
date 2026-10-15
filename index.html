@@ -6,22 +6,51 @@
 <script>
 const roles=['Chief Architect','Team Assembler','Program Manager','Research Director','Data Analyst','Software Engineer','Product Designer','QA Engineer','Security Reviewer','Deployment Engineer','Model Steward','Offline Engineer','Integration Engineer','Compliance Auditor','Financial Analyst','Sales Strategist','Operations Manager','Documentation Lead'];
 const defaults={projects:[{name:'TEAM Platform',status:'In progress'},{name:'Multi-model Fabric',status:'Planned'},{name:'Offline Agent Runtime',status:'Planned'}],tasks:[{title:'Implement real model connections',agent:'Model Steward',priority:'High',status:'Queued'},{title:'Deploy independent TEAM runtime',agent:'Deployment Engineer',priority:'High',status:'Queued'}]};
-let state;try{state=JSON.parse(localStorage.getItem('atlas-team-v1'))||structuredClone(defaults)}catch{state=structuredClone(defaults)}
-const save=()=>localStorage.setItem('atlas-team-v1',JSON.stringify(state));
-const views={overview:'Command Center',workforce:'Workforce',projects:'Projects',tasks:'Task Queue',models:'Model Fabric',audit:'Governance'};
+let state;try{state=JSON.parse(localStorage.getItem('atlas-team-v2'))||localStorage.getItem('atlas-team-v1')&&JSON.parse(localStorage.getItem('atlas-team-v1'))||structuredClone(defaults)}catch{state=structuredClone(defaults)}
+if(!Array.isArray(state.projects))state.projects=[];
+if(!Array.isArray(state.tasks))state.tasks=[];
+if(!Array.isArray(state.activity))state.activity=[];
+state.tasks=state.tasks.map((t,i)=>({...t,id:t.id||'task-'+i,approval:t.approval||'not-requested'}));
+const audit=(kind,description)=>{state.activity.unshift({kind,description,at:new Date().toISOString()});state.activity=state.activity.slice(0,200)};
+const signals={
+'Chief Architect':['architecture','system','roadmap','dependency','design'],
+'Team Assembler':['persona','agent','team','workforce'],
+'Program Manager':['milestone','plan','schedule','delivery'],
+'Research Director':['research','investigate','source','evidence'],
+'Data Analyst':['data','analysis','metrics','report'],
+'Software Engineer':['code','software','bug','feature','backend','frontend'],
+'Product Designer':['ui','ux','interface','layout','visual','accessibility'],
+'QA Engineer':['test','quality','regression','verify'],
+'Security Reviewer':['security','permissions','secrets','auth'],
+'Deployment Engineer':['deploy','vercel','release','production','build','github'],
+'Model Steward':['model','gpt','llm','routing','inference','provider'],
+'Offline Engineer':['offline','local','device','fallback'],
+'Integration Engineer':['connector','integration','webhook','sync','api'],
+'Compliance Auditor':['compliance','audit','policy','regulatory'],
+'Financial Analyst':['budget','cost','revenue','finance','pricing'],
+'Sales Strategist':['sales','customers','leads','proposal'],
+'Operations Manager':['operations','process','workflow','handoff'],
+'Documentation Lead':['documentation','write','guide','manual']
+};
+function propose(title){const words=new Set(String(title||'').toLowerCase().match(/[a-z0-9-]+/g)||[]);return roles.map(name=>({name,matches:(signals[name]||[]).filter(w=>words.has(w))})).filter(x=>x.matches.length).sort((a,b)=>b.matches.length-a.matches.length||a.name.localeCompare(b.name)).slice(0,4)}
+
+const save=()=>localStorage.setItem('atlas-team-v2',JSON.stringify(state));
+const views={overview:'Command Center',workforce:'Workforce',projects:'Projects',tasks:'Task Queue',models:'Model Fabric',audit:'Governance',routing:'Task Routing'};
 let current='overview';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function render(){document.getElementById('nav').innerHTML=Object.entries(views).map(([k,v])=>'<button class="'+(k===current?'on':'')+'" data-view="'+k+'">'+esc(v)+'</button>').join('');document.getElementById('heading').textContent=views[current];document.getElementById('metrics').innerHTML=[['Specialists',roles.length],['Projects',state.projects.length],['Tasks',state.tasks.length],['AI models online','Not connected']].map(([k,v])=>'<div class="metric"><span>'+k+'</span><b>'+esc(v)+'</b></div>').join('');
-const taskRows=state.tasks.map(t=>'<tr><td>'+esc(t.title)+'</td><td>'+esc(t.agent)+'</td><td>'+esc(t.priority)+'</td><td><span class="tag">'+esc(t.status)+'</span></td></tr>').join('');
+const taskRows=state.tasks.map(t=>'<tr><td>'+esc(t.title)+'</td><td>'+esc(t.agent)+'</td><td>'+esc(t.priority)+'</td><td><span class="tag">'+esc(t.status)+'</span> · '+esc(t.approval)+'</td></tr>').join('');
 let html='';
 if(current==='overview')html='<div class="panel"><h3>Mission control</h3><p>Track assignments, capabilities, and organizational readiness. This is a local prototype; personas are profiles, not autonomous running agents.</p></div><div class="panel"><h3>Priority task queue</h3><table><thead><tr><th>Task</th><th>Owner</th><th>Priority</th><th>Status</th></tr></thead><tbody>'+taskRows+'</tbody></table></div>';
 if(current==='workforce')html='<div class="panel"><h3>Specialist registry</h3><p>Expandable role profiles. Runtime and model credentials still need configuration.</p><div class="cards">'+roles.map((r,i)=>'<div class="card"><b>'+esc(r)+'</b><small>Persona '+(i+1)+' • Profile configured</small></div>').join('')+'</div></div>';
 if(current==='projects')html='<div class="panel"><h3>Portfolio</h3><div class="cards">'+state.projects.map(p=>'<div class="card"><b>'+esc(p.name)+'</b><small>'+esc(p.status)+'</small></div>').join('')+'</div><form id="projectform"><input name="name" placeholder="New project name" required><button class="button">Add project</button></form></div>';
 if(current==='tasks')html='<div class="panel"><h3>Work assignments</h3><table><thead><tr><th>Task</th><th>Specialist</th><th>Priority</th><th>Status</th></tr></thead><tbody>'+taskRows+'</tbody></table><h3 style="margin-top:30px">Create task</h3><form id="taskform"><input name="title" required placeholder="Task title"><select name="agent">'+roles.map(x=>'<option>'+esc(x)+'</option>').join('')+'</select><select name="priority"><option>Medium</option><option>High</option><option>Critical</option><option>Low</option></select><button class="button">Add task</button></form></div>';
 if(current==='models')html='<div class="panel"><h3>Model fabric</h3><p>Architecture placeholders only. No API credentials, provider integrations, model subscriptions or local inference engines are supplied by this prototype.</p><div class="cards"><div class="card">Cloud models<small>Connection required</small></div><div class="card">Local models<small>Installation required</small></div><div class="card">Capability router<small>Implementation pending</small></div></div></div>';
-if(current==='audit')html='<div class="panel"><h3>Governance</h3><p>Browser-local state is not a tamper-proof audit system. Authentication, approvals, server persistence and independent reviews are planned for the production application.</p></div>';
+if(current==='audit')html='<div class="panel"><h3>Governance & local history</h3><p>Browser-local approval and history are demonstrators, not authenticated or tamper-proof records.</p><table><thead><tr><th>Time</th><th>Action</th><th>Details</th></tr></thead><tbody>'+state.activity.map(a=>'<tr><td>'+esc(a.at)+'</td><td>'+esc(a.kind)+'</td><td>'+esc(a.description)+'</td></tr>').join('')+'</tbody></table></div>';
+if(current==='routing')html='<div class="panel"><h3>Human-reviewed specialist routing</h3><p>Routes task requests using transparent keyword matching. Nothing is executed automatically. Approvals are saved only in this browser.</p><form id="routeform"><input name="title" style="min-width:280px;flex:1" placeholder="Describe work to route" required><button class="button">Find specialists</button></form><div id="routeOutput" style="margin-top:18px"></div></div><div class="panel"><h3>Approval queue</h3>'+state.tasks.map(t=>'<div class="card" style="margin:10px 0"><b>'+esc(t.title)+'</b><small>Owner: '+esc(t.agent)+' · '+esc(t.approval)+'</small><button class="button" data-approve="'+esc(t.id)+'" '+(t.approval==='approved'?'disabled':'')+' style="margin-top:10px">Approve assignment</button></div>').join('')+'</div>';
 document.getElementById('view').innerHTML=html;}
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(b){current=b.dataset.view;render()}});
-document.getElementById('view').addEventListener('submit',e=>{e.preventDefault();const f=e.target,d=new FormData(f);if(f.id==='taskform'){state.tasks.push({title:String(d.get('title')).slice(0,140),agent:String(d.get('agent')),priority:String(d.get('priority')),status:'Queued'})}if(f.id==='projectform'){state.projects.push({name:String(d.get('name')).slice(0,100),status:'Planned'})}save();render()});
+document.getElementById('view').addEventListener('submit',e=>{e.preventDefault();const f=e.target,d=new FormData(f);if(f.id==='taskform'){const title=String(d.get('title')).slice(0,140);state.tasks.push({id:'task-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),title,agent:String(d.get('agent')),priority:String(d.get('priority')),status:'Queued',approval:'pending'});audit('task-created',title)}if(f.id==='projectform'){const name=String(d.get('name')).slice(0,100);state.projects.push({name,status:'Planned'});audit('project-created',name)}if(f.id==='routeform'){const title=String(d.get('title')).slice(0,140),matches=propose(title);const output=document.getElementById('routeOutput');output.innerHTML=matches.length?'<h3>Recommended specialists</h3>'+matches.map(x=>'<div class="card" style="margin:10px 0"><b>'+esc(x.name)+'</b><small>Matched: '+esc(x.matches.join(', '))+'</small><button class="button" data-create-route="'+esc(x.name)+'">Queue assignment</button></div>').join(''):'<p>No strong keyword match; human assignment required.</p>';output.dataset.title=title;return}save();render()});
+document.getElementById('view').addEventListener('click',e=>{const a=e.target.closest('[data-approve]');if(a){const t=state.tasks.find(x=>x.id===a.dataset.approve);if(t){t.approval='approved';audit('assignment-approved',t.title);save();render()}return}const b=e.target.closest('[data-create-route]');if(b){const title=document.getElementById('routeOutput')?.dataset.title;if(!title)return;state.tasks.push({id:'task-'+Date.now(),title,agent:b.dataset.createRoute,priority:'Medium',status:'Queued',approval:'pending'});audit('assignment-proposed',title+' -> '+b.dataset.createRoute);save();render()}});
 document.getElementById('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='atlas-team-export.json';a.click();URL.revokeObjectURL(url)});render();
 </script></body></html>
