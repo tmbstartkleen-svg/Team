@@ -2,6 +2,7 @@ const BACKEND_PATH=/^\/api\/[a-z0-9-]+\/?$/i;
 export default {
  async fetch(request,env){
   const url=new URL(request.url);
+  if(url.pathname==='/__team/health')return new Response(JSON.stringify({ok:true,service:'atlas-team-edge',hosting:'cloudflare',backend:'vercel-standby',backendVerified:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   if(!BACKEND_PATH.test(url.pathname))return new Response('Not found',{status:404});
   if(!['GET','POST','OPTIONS'].includes(request.method))return new Response('Method not allowed',{status:405});
