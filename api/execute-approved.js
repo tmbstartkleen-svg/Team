@@ -34,8 +34,13 @@ export default async function handler(req,res){
  const timer=setTimeout(()=>controller.abort(),policy.timeoutMs);
  try{
   const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({model,max_output_tokens:policy.maxOutputTokens,store:false,instructions:'You are the '+task.persona+' specialist within ATLAS TEAM. Give analysis and proposed steps only, without claiming to have performed external actions.',input:task.title})});
-  const raw=await response.text();
-  if(!response.ok||raw.length>1000000)throw Error('provider_failure');
+  const length=Number(response.headers.get('content-length')||0);
+  if(length>1000000)throw Error('provider_response_too_large');
+  const reader=response.body?.getReader();
+  let raw='';
+  if(reader){const decoder=new TextDecoder();let bytes=0;while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>1000000){await reader.cancel();throw Error('provider_response_too_large')}raw+=decoder.decode(value,{stream:true})}raw+=decoder.decode()}
+  else{raw=await response.text();if(Buffer.byteLength(raw)>1000000)throw Error('provider_response_too_large')}
+  if(!response.ok)throw Error('provider_failure');
   const data=JSON.parse(raw);
   const text=outputText(data);
   const record=await withDb(async db=>{
