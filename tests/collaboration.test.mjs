@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createProjectMessage,projectRoomView} from '../lib/collaboration.mjs';
+import {createProjectMessage,projectRoomView,summarizeProjectRoom} from '../lib/collaboration.mjs';
 test('project messages remain drafts until delivery is confirmed',()=>{const m=createProjectMessage({project:'TEAM',persona:'QA Engineer',message:'Need testing assistance',kind:'question'});assert.equal(m.state,'draft-not-sent');assert.equal(m.deliveryConfirmed,false);assert.equal(m.visibility,'project-team')});
 test('private owner escalation is excluded from persona room',()=>{const publicMsg=createProjectMessage({project:'TEAM',persona:'Engineer',message:'Ready for QA'});const privateMsg=createProjectMessage({project:'TEAM',persona:'Engineer',message:'Need owner approval',kind:'owner'});assert.equal(projectRoomView([publicMsg,privateMsg],{project:'TEAM',viewer:'persona'}).length,1);assert.equal(projectRoomView([publicMsg,privateMsg],{project:'TEAM',viewer:'owner'}).length,2)});
 test('invalid message kinds and oversized content rejected',()=>{assert.throws(()=>createProjectMessage({project:'TEAM',persona:'Agent',message:'x',kind:'admin'}));assert.throws(()=>createProjectMessage({project:'TEAM',persona:'Agent',message:'x'.repeat(801)}))});
+
+test('collaboration summary separates handoffs and owner-private blockers',()=>{const entries=[createProjectMessage({project:'TEAM',persona:'QA',message:'handoff',kind:'handoff'}),createProjectMessage({project:'TEAM',persona:'QA',message:'Needs owner consent',kind:'owner'})];const owner=summarizeProjectRoom(entries,{project:'TEAM',viewer:'owner'});const team=summarizeProjectRoom(entries,{project:'TEAM',viewer:'persona'});assert.equal(owner.handOffs,1);assert.equal(owner.requiresOwnerAttention,true);assert.equal(team.visibleMessages,1);assert.equal(team.requiresOwnerAttention,false);assert.equal(owner.liveDeliveryActive,false)});
