@@ -16,6 +16,11 @@ export default {
   const upstream=new URL(env.TEAM_API_ORIGIN||'https://team-rho-self.vercel.app');
   if(upstream.hostname===url.hostname)return new Response(JSON.stringify({ok:false,error:'backend_loop_rejected'}),{status:503,headers:{'content-type':'application/json','cache-control':'no-store'}});
   if(upstream.protocol!=='https:'||upstream.username||upstream.password||upstream.pathname!=='/'||upstream.search) return new Response('Backend not configured',{status:503});
+  if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'allow':'GET, POST, OPTIONS','cache-control':'no-store'}});
+  if(request.method==='POST'){
+   const origin=request.headers.get('origin');
+   if(origin&&origin!==url.origin)return new Response(JSON.stringify({ok:false,error:'cross_origin_write_denied'}),{status:403,headers:{'content-type':'application/json','cache-control':'no-store'}});
+  }
   const target=new URL(url.pathname+url.search,upstream);
   const headers=new Headers(request.headers);
   headers.delete('host');
