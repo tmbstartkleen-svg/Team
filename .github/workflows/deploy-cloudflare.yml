@@ -20,6 +20,8 @@ jobs:
       - run: npm run check
       - name: Stage static frontend
         run: mkdir -p public && cp index.html public/index.html
+      - name: Verify Cloudflare Worker can bundle without publishing
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/atlas-team-bundle
       - name: Check Cloudflare deployment credentials
         id: credentials
         env:
