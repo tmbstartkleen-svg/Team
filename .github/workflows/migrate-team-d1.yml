@@ -1,14 +1,8 @@
 name: Migrate TEAM D1 Schema
 on:
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: Type MIGRATE-TEAM-D1 to apply versioned schema migrations
-        required: true
-        type: string
 jobs:
   migrate:
-    if: inputs.confirm == 'MIGRATE-TEAM-D1'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
