@@ -19,7 +19,7 @@ async function runScenario({provider='success',approved=true,initialStatus='queu
    throw new Error('Unexpected SQL: '+sql);
   }};
  };
- globalThis.fetch=async()=>{state.providerCalls++;return {ok:true,headers:new Headers(),body:null,text:async()=>JSON.stringify(provider==='success'?{id:'resp-test',status:'completed',output_text:'A safe plan for review.'}:provider==='empty'?{id:'resp-test',status:'completed',output_text:''}:{status:'failed',error:{code:'failure'}})}};
+ globalThis.fetch=async()=>{state.providerCalls++;return {ok:true,headers:new Headers(),body:null,text:async()=>JSON.stringify(provider==='success'?{id:'resp-test',status:'completed',output_text:'A safe plan for review.'}:provider==='empty'?{id:'resp-test',status:'completed',output_text:''}:provider==='oversized'?{id:'resp-test',status:'completed',output_text:'x'.repeat(12001)}:{status:'failed',error:{code:'failure'}})}};
  process.env.TEAM_ADMIN_TOKEN='test-operator';
  process.env.OPENAI_API_KEY='test-key';
  process.env.TEAM_DATABASE_URL='postgresql://test:pass@localhost:5432/team';
@@ -58,4 +58,12 @@ test('rejected model output never records successful completion',async()=>{
  const {state}=await runScenario({provider:'empty'});
  assert.deepEqual(state.transactions,['BEGIN','COMMIT','BEGIN','COMMIT']);
  assert.equal(state.events.includes('task.model_completed'),false);
+});
+
+test('oversized model output cannot be recorded as a successful task',async()=>{
+ const {out,state}=await runScenario({provider:'oversized'});
+ assert.equal(out.status,502);
+ assert.equal(state.status,'failed');
+ assert.deepEqual(state.events,['task.model_started','task.model_failed']);
+ assert.equal(state.providerCalls,1);
 });
