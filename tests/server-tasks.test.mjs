@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import tasks from '../api/tasks.js';
+import approve from '../api/approve.js';
+import events from '../api/events.js';
+function request(method='GET',body={},headers={}){const req={method,body,headers};const out={status:200,body:null,headers:{}};const res={setHeader:(k,v)=>out.headers[k]=v,status:n=>{out.status=n;return res},json:v=>{out.body=v;return res}};return {req,res,out}}
+test('server task endpoints require operator authentication',async()=>{for(const fn of [tasks,approve,events]){const a=request();await fn(a.req,a.res);assert.equal(a.out.status,fn===approve?405:401)}});
+test('task creation rejects invalid persona without a database',async()=>{const old=process.env.TEAM_ADMIN_TOKEN;process.env.TEAM_ADMIN_TOKEN='test';try{const a=request('POST',{title:'Important test task',persona:'Unregistered Persona',priority:'medium'},{authorization:'Bearer test','content-type':'application/json'});await tasks(a.req,a.res);assert.equal(a.out.status,400);assert.equal(a.out.body.error,'invalid_persona')}finally{if(old===undefined)delete process.env.TEAM_ADMIN_TOKEN;else process.env.TEAM_ADMIN_TOKEN=old}});
+test('unconfigured database returns clear service status',async()=>{const old=process.env.TEAM_ADMIN_TOKEN,db=process.env.TEAM_DATABASE_URL;process.env.TEAM_ADMIN_TOKEN='test';delete process.env.TEAM_DATABASE_URL;try{const a=request('GET',{}, {authorization:'Bearer test'});await tasks(a.req,a.res);assert.equal(a.out.status,503);assert.equal(a.out.body.error,'database_not_configured')}finally{if(old===undefined)delete process.env.TEAM_ADMIN_TOKEN;else process.env.TEAM_ADMIN_TOKEN=old;if(db!==undefined)process.env.TEAM_DATABASE_URL=db}});
+test('approval needs a valid task id',async()=>{const old=process.env.TEAM_ADMIN_TOKEN;process.env.TEAM_ADMIN_TOKEN='test';try{const a=request('POST',{taskId:'bad',decision:'approved'},{authorization:'Bearer test','content-type':'application/json'});await approve(a.req,a.res);assert.equal(a.out.status,400)}finally{if(old===undefined)delete process.env.TEAM_ADMIN_TOKEN;else process.env.TEAM_ADMIN_TOKEN=old}});
