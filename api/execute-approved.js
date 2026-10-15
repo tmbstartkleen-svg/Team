@@ -53,9 +53,14 @@ export default async function handler(req,res){
   return respond(res,200,{ok:true,taskId:task.id,status:'completed',model,result:text,requestId:data.id||randomUUID()});
  }catch{
   await withDb(async db=>{
-   await db.query("UPDATE team_tasks SET status='failed',updated_at=now() WHERE id=$1 AND status='running'",[task.id]);
-   await db.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[task.id,'task.model_failed',JSON.stringify({model})]);
-   return {ok:true};
+   const client=await db.connect();
+   try{
+    await client.query('BEGIN');
+    await client.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[task.id,'task.model_failed',JSON.stringify({model})]);
+    await client.query("UPDATE team_tasks SET status='failed',updated_at=now() WHERE id=$1 AND status='running'",[task.id]);
+    await client.query('COMMIT');
+    return {ok:true};
+   }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
   });
   return respond(res,502,{ok:false,error:'model_execution_failed'});
  }finally{clearTimeout(timer)}
