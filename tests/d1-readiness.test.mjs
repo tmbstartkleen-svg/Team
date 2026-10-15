@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {inspectTeamDatabase} from '../lib/d1-readiness.mjs';
+test('missing D1 binding is reported honestly',async()=>{const x=await inspectTeamDatabase();assert.equal(x.bindingConfigured,false);assert.equal(x.schemaVerified,false)});
+test('schema verification requires every expected table',async()=>{const db={prepare(){return {all:async()=>({results:[{name:'team_projects'},{name:'team_tasks'}]})}}};const x=await inspectTeamDatabase(db);assert.equal(x.bindingConfigured,true);assert.equal(x.schemaVerified,false)});
+test('all tables present yield schema readiness, not agent readiness',async()=>{const names=['team_projects','team_tasks','team_messages','team_memory_consent','team_memory_items','team_message_delivery'];const db={prepare(){return {all:async()=>({results:names.map(name=>({name}))})}}};assert.equal((await inspectTeamDatabase(db)).schemaVerified,true)});
