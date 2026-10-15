@@ -1,5 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {webcrypto} from 'node:crypto';import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
-globalThis.crypto=webcrypto;
+import test from 'node:test';import assert from 'node:assert/strict';import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
 const token='a'.repeat(40),url='https://example.com/api/owner-collaboration?projectId=sample';
 const req=(method='GET',auth,body)=>new Request(url,{method,headers:auth?{'authorization':'Bearer '+auth}:undefined,body});
 test('owner collaboration denies missing auth and missing secret',async()=>{assert.equal((await handleOwnerCollaboration(req(),{})).status,401);assert.equal((await handleOwnerCollaboration(req(),{TEAM_OWNER_API_TOKEN:token})).status,401);assert.equal((await handleOwnerCollaboration(req('GET','wrong'),{TEAM_OWNER_API_TOKEN:token})).status,401)});
