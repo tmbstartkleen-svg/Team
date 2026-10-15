@@ -30,3 +30,5 @@ test('success audit requires completed state transition',()=>{const src=readFile
 test('incomplete and blank model responses cannot finish a task',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(src,/provider_incomplete/);assert.match(src,/provider_empty_output/);assert.match(src,/!text\.trim\(\)/)});
 
 test('model task completion requires explicit provider completed status',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(src,/data\.status!=='completed'/)});
+
+test('model result exceeding audit capacity cannot complete task',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(src,/text\.length>12000/);assert.match(src,/provider_output_exceeds_audit_limit/)});
