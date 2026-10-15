@@ -11,3 +11,5 @@ function mock(method='POST'){
 test('health reports capability readiness without secrets',()=>{const x=mock('GET');health(x.req,x.res);assert.equal(x.out.status,200);assert.equal(typeof x.out.body.executionConfigured,'boolean')});
 test('approved execution blocks anonymous callers',async()=>{const x=mock('POST');await approved(x.req,x.res);assert.equal(x.out.status,401)});
 test('provider model is allowlist constrained',()=>{assert.equal(modelPolicy({TEAM_MODEL:'unsupported',TEAM_ALLOWED_MODELS:'approved'}).allowed,false)});
+
+test('health does not claim production operational without live verification',()=>{const x=mock('GET');health(x.req,x.res);assert.equal(x.out.body.productionOperational,false);assert.equal(x.out.body.releaseChecks.liveWorkflowVerified,false);assert.equal(x.out.body.version,'0.18.0')});
