@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import worker from '../src/cloudflare-worker.js';
+const env={TEAM_API_ORIGIN:'https://team-rho-self.vercel.app',ASSETS:{fetch:async()=>new Response('TEAM UI')}};
+test('Cloudflare serves frontend assets without API proxy',async()=>{const response=await worker.fetch(new Request('https://team.example/'),env);assert.equal(await response.text(),'TEAM UI')});
+test('Cloudflare rejects unexpected API paths',async()=>{const response=await worker.fetch(new Request('https://team.example/api/a/b'),env);assert.equal(response.status,404)});
+test('Cloudflare sends upstream failures as safe JSON without exposing tokens',async()=>{const old=globalThis.fetch;globalThis.fetch=async()=>{throw Error('private connection details')};try{const response=await worker.fetch(new Request('https://team.example/api/health'),env);assert.equal(response.status,502);const body=await response.json();assert.equal(body.error,'team_backend_unavailable')}finally{globalThis.fetch=old}});
+test('Cloudflare proxy strips cookies, redirect location and upstream CORS headers',async()=>{const old=globalThis.fetch;globalThis.fetch=async request=>{assert.equal(request.headers.has('cookie'),false);return new Response('{}',{headers:{'set-cookie':'session=secret','location':'https://other.example','access-control-allow-origin':'*'}})};try{const response=await worker.fetch(new Request('https://team.example/api/health',{headers:{cookie:'browser=secret'}}),env);assert.equal(response.headers.has('set-cookie'),false);assert.equal(response.headers.has('location'),false);assert.equal(response.headers.has('access-control-allow-origin'),false)}finally{globalThis.fetch=old}});
