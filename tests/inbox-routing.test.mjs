@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {integrationReadiness,rankInboxItems} from '../lib/inbox-routing.mjs';
+test('connection never asserted without consent and verified live read',()=>{assert.equal(integrationReadiness('gmail',{consented:true,tokenVerified:true}).connected,false);assert.equal(integrationReadiness('microsoft365',{consented:true,tokenVerified:true,readVerified:true}).connected,true);assert.equal(integrationReadiness('gmail').sendEnabled,false)});
+test('Microsoft business messages precede Gmail side projects',()=>{const sorted=rankInboxItems([{provider:'gmail',subject:'Side project'},{provider:'microsoft365',subject:'Client'}]);assert.equal(sorted[0].provider,'microsoft365')});
+test('unknown provider rejected',()=>assert.throws(()=>integrationReadiness('random')));
