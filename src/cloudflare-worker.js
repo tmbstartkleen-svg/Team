@@ -10,11 +10,17 @@ export default {
   // Temporary compatibility bridge: Cloudflare hosts the UI, existing Vercel
   // functions remain the API origin until they are ported to Cloudflare.
   const upstream=new URL(env.TEAM_API_ORIGIN||'https://team-rho-self.vercel.app');
+  if(upstream.hostname===url.hostname)return new Response(JSON.stringify({ok:false,error:'backend_loop_rejected'}),{status:503,headers:{'content-type':'application/json','cache-control':'no-store'}});
   if(upstream.protocol!=='https:'||upstream.username||upstream.password||upstream.pathname!=='/'||upstream.search) return new Response('Backend not configured',{status:503});
   const target=new URL(url.pathname+url.search,upstream);
   const headers=new Headers(request.headers);
   headers.delete('host');
   headers.delete('cookie');
+  headers.delete('cf-connecting-ip');
+  headers.delete('x-forwarded-for');
+  headers.delete('x-real-ip');
+  headers.delete('x-forwarded-host');
+  headers.delete('x-forwarded-proto');
   let response;
   try{response=await fetch(new Request(target,{method:request.method,headers,body:request.method==='GET'||request.method==='HEAD'?undefined:request.body,redirect:'manual'}));}
   catch{return new Response(JSON.stringify({ok:false,error:'team_backend_unavailable'}),{status:502,headers:{'content-type':'application/json','cache-control':'no-store'}})}
