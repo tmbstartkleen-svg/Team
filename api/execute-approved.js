@@ -12,8 +12,6 @@ export default async function handler(req,res){
  if(!method(req,res,['POST']))return;
  if(!authorize(req))return respond(res,401,{ok:false,error:'unauthorized'});
  if(!String(req.headers['content-type']||'').startsWith('application/json'))return respond(res,415,{ok:false,error:'json_required'});
- const access=evaluateAccess({mode:'approval',action:'execute-tool',ownerApproved:true});
- if(!access.allowed)return respond(res,403,{ok:false,error:'access_denied'});
  if(!process.env.OPENAI_API_KEY)return respond(res,503,{ok:false,error:'model_not_configured'});
  const {taskId}=req.body||{};
  if(typeof taskId!=='string'||!uuid.test(taskId))return respond(res,400,{ok:false,error:'invalid_task_id'});
@@ -35,6 +33,9 @@ export default async function handler(req,res){
   }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
  });
  if(!result.ok)return respond(res,result.status||503,{ok:false,error:result.error});
+ // The atomic database claim above proves this task has an owner approval.
+ const access=evaluateAccess({mode:'approval',action:'execute-tool',ownerApproved:Boolean(result.task)});
+ if(!access.allowed)return respond(res,403,{ok:false,error:'access_denied'});
  const task=result.task,controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),policy.timeoutMs);
  try{
