@@ -1,4 +1,5 @@
 import {timingSafeEqual} from 'node:crypto';
+import {SPECIALISTS} from '../lib/route.mjs';
 function authorized(candidate,expected){
  if(!candidate||!expected)return false;
  const a=Buffer.from(candidate),b=Buffer.from(expected);
@@ -17,12 +18,16 @@ export default async function handler(req,res){
  const {task,persona,approved}=req.body||{};
  if(approved!==true)return res.status(403).json({ok:false,error:'explicit_approval_required'});
  if(typeof task!=='string'||task.trim().length<3||task.length>4000)return res.status(400).json({ok:false,error:'invalid_task'});
- if(typeof persona!=='string'||persona.length>100)return res.status(400).json({ok:false,error:'invalid_persona'});
+ if(typeof persona!=='string'||persona.length>100||!SPECIALISTS.some(x=>x.name===persona))return res.status(400).json({ok:false,error:'invalid_persona'});
+ const allowedModels=(process.env.TEAM_ALLOWED_MODELS||'gpt-5-mini').split(',').map(x=>x.trim()).filter(Boolean);
+ const model=process.env.TEAM_MODEL||'gpt-5-mini';
+ if(!allowedModels.includes(model))return res.status(503).json({ok:false,error:'model_not_allowlisted'});
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
  try{
-  const model=process.env.TEAM_MODEL||'gpt-5-mini';
   const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{Authorization:'Bearer '+process.env.OPENAI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model,max_output_tokens:1000,store:false,instructions:'You are the '+persona+' specialist within ATLAS TEAM. Provide useful analysis and proposed steps only. Do not claim to have used tools, accessed files, performed actions, or executed a task. Clearly distinguish recommendations from completed actions.',input:task})});
-  const data=await response.json().catch(()=>({}));
+  const raw=await response.text();
+  if(raw.length>1000000)return res.status(502).json({ok:false,error:'provider_response_too_large'});
+  let data={};try{data=JSON.parse(raw)}catch{}
   if(!response.ok)return res.status(502).json({ok:false,error:'model_provider_error',providerStatus:response.status});
   return res.status(200).json({ok:true,execution:'completed-model-response',persona,model,result:outputText(data),requestId:data.id||null});
  }catch(error){return res.status(error.name==='AbortError'?504:502).json({ok:false,error:error.name==='AbortError'?'model_timeout':'model_unavailable'});}
