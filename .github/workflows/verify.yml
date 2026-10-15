@@ -13,3 +13,12 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run check
+      - name: Generate production readiness report
+        run: node scripts/report-readiness.mjs
+      - name: Upload readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: team-production-readiness
+          path: artifacts/production-readiness.*
+          if-no-files-found: warn
