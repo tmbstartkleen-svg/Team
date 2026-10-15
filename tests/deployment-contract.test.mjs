@@ -36,3 +36,5 @@ test('model result exceeding audit capacity cannot complete task',()=>{const src
 test('provider request ID is bounded and shared with audit record',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(src,/data\.id\.length<=160/);assert.match(src,/requestId,result:text/)});
 
 test('model execution enforces owner-approved access policy after an atomic claim',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(src,/evaluateAccess\(\{mode:'approval',action:'execute-tool'/);assert.match(src,/ownerApproved:Boolean\(result\.task\)/)});
+
+test('Microsoft 365 workspace labels disconnected services honestly',()=>{const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/microsoft:'Microsoft 365'/);assert.match(html,/Not connected — no mailbox monitoring active here/);assert.match(html,/Outlook Mail/);assert.match(html,/Planner & To Do/)});
