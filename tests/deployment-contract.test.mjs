@@ -32,3 +32,5 @@ test('incomplete and blank model responses cannot finish a task',()=>{const src=
 test('model task completion requires explicit provider completed status',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(src,/data\.status!=='completed'/)});
 
 test('model result exceeding audit capacity cannot complete task',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(src,/text\.length>12000/);assert.match(src,/provider_output_exceeds_audit_limit/)});
+
+test('provider request ID is bounded and shared with audit record',()=>{const src=readFileSync(new URL('../api/execute-approved.js',import.meta.url),'utf8');assert.match(src,/data\.id\.length<=160/);assert.match(src,/requestId,result:text/)});
