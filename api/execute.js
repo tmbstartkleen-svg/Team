@@ -16,6 +16,8 @@ export default async function handler(req,res){
  if(!process.env.TEAM_ADMIN_TOKEN||!process.env.OPENAI_API_KEY)return res.status(503).json({ok:false,error:'backend_not_configured'});
  if(!authorized(token,process.env.TEAM_ADMIN_TOKEN))return res.status(401).json({ok:false,error:'unauthorized'});
  const {task,persona,approved}=req.body||{};
+ const requestId=globalThis.crypto?.randomUUID?.()||null;
+ if(req.headers['content-type']&&!String(req.headers['content-type']).toLowerCase().startsWith('application/json'))return res.status(415).json({ok:false,error:'json_required'});
  if(approved!==true)return res.status(403).json({ok:false,error:'explicit_approval_required'});
  if(typeof task!=='string'||task.trim().length<3||task.length>4000)return res.status(400).json({ok:false,error:'invalid_task'});
  if(typeof persona!=='string'||persona.length>100||!SPECIALISTS.some(x=>x.name===persona))return res.status(400).json({ok:false,error:'invalid_persona'});
@@ -29,7 +31,7 @@ export default async function handler(req,res){
   if(raw.length>1000000)return res.status(502).json({ok:false,error:'provider_response_too_large'});
   let data={};try{data=JSON.parse(raw)}catch{}
   if(!response.ok)return res.status(502).json({ok:false,error:'model_provider_error',providerStatus:response.status});
-  return res.status(200).json({ok:true,execution:'completed-model-response',persona,model,result:outputText(data),requestId:data.id||null});
+  return res.status(200).json({ok:true,execution:'completed-model-response',persona,model,result:outputText(data),requestId:data.id||requestId});
  }catch(error){return res.status(error.name==='AbortError'?504:502).json({ok:false,error:error.name==='AbortError'?'model_timeout':'model_unavailable'});}
  finally{clearTimeout(timer);}
 }
