@@ -1,3 +1,4 @@
+import {buildPlan} from '../lib/orchestration.mjs';
 const BACKEND_PATH=/^\/api\/[a-z0-9-]+\/?$/i;
 export default {
  async fetch(request,env){
@@ -11,6 +12,18 @@ export default {
   if(url.pathname==='/api/workforce'){
    if(request.method!=='GET')return new Response(JSON.stringify({ok:false,error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json','allow':'GET','cache-control':'no-store'}});
    return new Response(JSON.stringify({ok:true,source:'cloudflare-edge',authority:'human-project-owner',execution:'approval-required',replication:'owner-proposal-only',personas:[{id:'chief-of-staff',role:'Chief of Staff',scope:'coordinate and prioritize'},{id:'microsoft-triage',role:'Microsoft 365 Triage',scope:'propose important messages and assignments'},{id:'security-review',role:'Security Reviewer',scope:'flag authorization and deployment risks'},{id:'release-review',role:'Release Reviewer',scope:'verify CI and production deployments'}],agentsRunning:false,requiresConfiguredModelAndStorage:true}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
+  }
+  if(url.pathname==='/api/plan'){
+   if(request.method!=='POST')return new Response(JSON.stringify({ok:false,error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json','allow':'POST','cache-control':'no-store'}});
+   const origin=request.headers.get('origin');
+   if(origin&&origin!==url.origin)return new Response(JSON.stringify({ok:false,error:'cross_origin_write_denied'}),{status:403,headers:{'content-type':'application/json','cache-control':'no-store'}});
+   if(!request.headers.get('content-type')?.toLowerCase().startsWith('application/json'))return new Response(JSON.stringify({ok:false,error:'json_required'}),{status:415,headers:{'content-type':'application/json','cache-control':'no-store'}});
+   if(Number(request.headers.get('content-length')||0)>4096)return new Response(JSON.stringify({ok:false,error:'request_too_large'}),{status:413,headers:{'content-type':'application/json','cache-control':'no-store'}});
+   let raw;try{raw=await request.text()}catch{return new Response(JSON.stringify({ok:false,error:'invalid_request'}),{status:400,headers:{'content-type':'application/json','cache-control':'no-store'}})}
+   if(raw.length>4096)return new Response(JSON.stringify({ok:false,error:'request_too_large'}),{status:413,headers:{'content-type':'application/json','cache-control':'no-store'}});
+   let input;try{input=JSON.parse(raw)}catch{return new Response(JSON.stringify({ok:false,error:'invalid_json'}),{status:400,headers:{'content-type':'application/json','cache-control':'no-store'}})}
+   try{const plan=buildPlan(input?.goal,{maxStages:input?.maxStages});return new Response(JSON.stringify({ok:true,source:'cloudflare-edge',plan}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}})}
+   catch{return new Response(JSON.stringify({ok:false,error:'invalid_goal'}),{status:400,headers:{'content-type':'application/json','cache-control':'no-store'}})}
   }
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   if(!BACKEND_PATH.test(url.pathname))return new Response('Not found',{status:404});
