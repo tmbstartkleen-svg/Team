@@ -13,9 +13,13 @@ export default {
   const headers=new Headers(request.headers);
   headers.delete('host');
   headers.delete('cookie');
-  const response=await fetch(new Request(target,{method:request.method,headers,body:request.method==='GET'||request.method==='HEAD'?undefined:request.body,redirect:'manual'}));
+  let response;
+  try{response=await fetch(new Request(target,{method:request.method,headers,body:request.method==='GET'||request.method==='HEAD'?undefined:request.body,redirect:'manual'}));}
+  catch{return new Response(JSON.stringify({ok:false,error:'team_backend_unavailable'}),{status:502,headers:{'content-type':'application/json','cache-control':'no-store'}})}
   const safe=new Headers(response.headers);
   safe.delete('set-cookie');
+  safe.delete('location');
+  safe.delete('access-control-allow-origin');
   safe.set('Cache-Control','no-store');
   safe.set('X-Team-Backend','vercel-standby');
   return new Response(response.body,{status:response.status,headers:safe});
