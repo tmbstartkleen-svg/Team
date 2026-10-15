@@ -1,0 +1,50 @@
+name: Migrate TEAM D1 Schema
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type MIGRATE-TEAM-D1 to apply versioned schema migrations
+        required: true
+        type: string
+jobs:
+  migrate:
+    if: inputs.confirm == 'MIGRATE-TEAM-D1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Verify database secrets and pin dedicated binding
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEAM_D1_DATABASE_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+        run: |
+          set -eu
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          if ! printf '%s' "$TEAM_D1_DATABASE_ID" | grep -Eq '^[0-9a-fA-F-]{36}$'; then
+            echo '::error::TEAM_D1_DATABASE_ID must be a valid database UUID'; exit 1
+          fi
+          printf '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-data"\ndatabase_id = "%s"\n' "$TEAM_D1_DATABASE_ID" >> wrangler.toml
+      - name: Verify remote database identity before modifying schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEAM_D1_DATABASE_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 list --json > /tmp/team-db-list.json
+          node -e 'const a=require("/tmp/team-db-list.json");const found=a.filter(x=>x.name==="atlas-team-data"&&x.uuid===process.env.TEAM_D1_DATABASE_ID);if(found.length!==1)throw Error("TEAM D1 name/UUID mismatch: migration refused")'
+      - name: Apply versioned migrations to remote TEAM database
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          for migration in migrations/0001_team_core.sql migrations/0002_owner_memory.sql migrations/0003_task_leases.sql migrations/0004_task_blockers.sql migrations/0005_message_delivery.sql; do
+            echo "Applying $migration"
+            npx --yes wrangler@4 d1 execute atlas-team-data --remote --file "$migration" --yes
+          done
+          echo 'TEAM remote D1 migrations completed.' >> "$GITHUB_STEP_SUMMARY"
