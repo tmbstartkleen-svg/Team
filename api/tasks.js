@@ -17,12 +17,13 @@ export default async function handler(req,res){
   if(!SPECIALISTS.some(x=>x.name===persona))return {ok:false,error:'invalid_persona',status:400};
   if(!priorities.has(priority))return {ok:false,error:'invalid_priority',status:400};
   const id=randomUUID();
-  await db.query('BEGIN');
+  const client=await db.connect();
   try{
-   await db.query('INSERT INTO team_tasks(id,title,persona,priority) VALUES ($1,$2,$3,$4)',[id,title.trim(),persona,priority]);
-   await db.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[id,'task.created',JSON.stringify({persona,priority})]);
-   await db.query('COMMIT');
-  }catch(e){await db.query('ROLLBACK');throw e}
+   await client.query('BEGIN');
+   await client.query('INSERT INTO team_tasks(id,title,persona,priority) VALUES ($1,$2,$3,$4)',[id,title.trim(),persona,priority]);
+   await client.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[id,'task.created',JSON.stringify({persona,priority})]);
+   await client.query('COMMIT');
+  }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
   return {ok:true,task:{id,title:title.trim(),persona,priority,status:'queued',approval:'pending'},status:201};
  });
  return respond(res,result.status||200,{...result,status:undefined});
