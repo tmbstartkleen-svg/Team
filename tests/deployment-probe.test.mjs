@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {probeTeamDeployment} from '../lib/deployment-probe.mjs';
+test('healthy website is not operational backend proof',async()=>{const x=await probeTeamDeployment('https://example.com/__team/health',{fetcher:async()=>({ok:true,status:200,json:async()=>({ok:true,hosting:'cloudflare'})})});assert.equal(x.reachable,true);assert.equal(x.operational,false)});
+test('operational claim requires explicit runtime and database checks',async()=>{const x=await probeTeamDeployment('https://example.com/api/health',{fetcher:async()=>({ok:true,status:200,json:async()=>({ok:true,productionOperational:true,executionConfigured:true,databaseSchemaVerified:true})})});assert.equal(x.operational,true)});
+test('unsafe URL path is rejected',async()=>{await assert.rejects(()=>probeTeamDeployment('http://example.com/api/health'));await assert.rejects(()=>probeTeamDeployment('https://example.com/secret'))});
