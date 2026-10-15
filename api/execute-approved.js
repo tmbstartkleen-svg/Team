@@ -3,6 +3,7 @@ import {authorize,respond,method} from '../lib/server-auth.mjs';
 import {withDb} from '../lib/database.mjs';
 import {SPECIALISTS} from '../lib/route.mjs';
 import {modelPolicy} from '../lib/limits.mjs';
+import {evaluateAccess} from '../lib/access-policy.mjs';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function outputText(result){return typeof result.output_text==='string'?result.output_text:(result.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text||'').join('\n')}
@@ -11,6 +12,8 @@ export default async function handler(req,res){
  if(!method(req,res,['POST']))return;
  if(!authorize(req))return respond(res,401,{ok:false,error:'unauthorized'});
  if(!String(req.headers['content-type']||'').startsWith('application/json'))return respond(res,415,{ok:false,error:'json_required'});
+ const access=evaluateAccess({mode:'approval',action:'execute-tool',ownerApproved:true});
+ if(!access.allowed)return respond(res,403,{ok:false,error:'access_denied'});
  if(!process.env.OPENAI_API_KEY)return respond(res,503,{ok:false,error:'model_not_configured'});
  const {taskId}=req.body||{};
  if(typeof taskId!=='string'||!uuid.test(taskId))return respond(res,400,{ok:false,error:'invalid_task_id'});
