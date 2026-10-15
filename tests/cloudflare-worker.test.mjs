@@ -19,3 +19,6 @@ test('Cloudflare integration readiness does not allow writes',async()=>{const re
 
 test('Cloudflare blocks cross-origin state changing requests',async()=>{const response=await worker.fetch(new Request('https://team.example/api/tasks',{method:'POST',headers:{origin:'https://malicious.example'}}),env);assert.equal(response.status,403);assert.equal((await response.json()).error,'cross_origin_write_denied')});
 test('Cloudflare responds to API preflight without contacting standby backend',async()=>{const response=await worker.fetch(new Request('https://team.example/api/tasks',{method:'OPTIONS'}),env);assert.equal(response.status,204)});
+
+test('Cloudflare native workforce requires owner approvals and does not claim running agents',async()=>{const response=await worker.fetch(new Request('https://team.example/api/workforce'),env);assert.equal(response.status,200);const data=await response.json();assert.equal(data.authority,'human-project-owner');assert.equal(data.agentsRunning,false);assert.ok(data.personas.length>=4)});
+test('Cloudflare native workforce is read-only',async()=>{const response=await worker.fetch(new Request('https://team.example/api/workforce',{method:'POST'}),env);assert.equal(response.status,405)});
