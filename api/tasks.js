@@ -7,6 +7,12 @@ export default async function handler(req,res){
  if(!method(req,res,['GET','POST']))return;
  if(!authorize(req))return respond(res,401,{ok:false,error:'unauthorized'});
  if(req.method==='POST'&&!String(req.headers['content-type']||'').startsWith('application/json'))return respond(res,415,{ok:false,error:'json_required'});
+ if(req.method==='POST'){
+  const {title,persona,priority='medium'}=req.body||{};
+  if(typeof title!=='string'||title.trim().length<3||title.length>240)return respond(res,400,{ok:false,error:'invalid_title'});
+  if(!SPECIALISTS.some(x=>x.name===persona))return respond(res,400,{ok:false,error:'invalid_persona'});
+  if(!priorities.has(priority))return respond(res,400,{ok:false,error:'invalid_priority'});
+ }
  const result=await withDb(async db=>{
   if(req.method==='GET'){
    const rows=await db.query('SELECT id,title,persona,priority,status,approval,created_at,approved_at FROM team_tasks ORDER BY created_at DESC LIMIT 100');
