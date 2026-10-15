@@ -20,6 +20,69 @@ jobs:
       - run: npm run check
       - name: Stage static frontend
         run: mkdir -p public && cp index.html public/index.html
+      - name: Configure dedicated TEAM D1 binding when provisioned
+        env:
+          TEAM_D1_DATABASE_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+        run: |
+          if [ -n "$TEAM_D1_DATABASE_ID" ]; then
+            if ! printf '%s' "$TEAM_D1_DATABASE_ID" | grep -Eq '^[0-9a-fA-F-]{36}        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/atlas-team-bundle
+      - name: Check Cloudflare deployment credentials
+        id: credentials
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CF_API_TOKEN" ] && [ -n "$CF_ACCOUNT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Cloudflare deployment not configured; add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets to TEAM."
+          fi
+      - name: Require Cloudflare credentials
+        if: steps.credentials.outputs.ready != 'true' && github.event_name != 'schedule'
+        run: |
+          echo '## Cloudflare production: BLOCKED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Verification passed; publication cannot proceed until TEAM repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are configured.' >> "$GITHUB_STEP_SUMMARY"
+          echo '::error::Cloudflare credentials missing; this deployment job must not report success.'
+          exit 1
+      - name: Scheduled credential readiness report
+        if: steps.credentials.outputs.ready != 'true' && github.event_name == 'schedule'
+        run: |
+          echo '## Cloudflare still awaiting credentials' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Scheduled check only; no deployment attempted.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy Cloudflare Worker
+        if: steps.credentials.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+          wranglerVersion: '4'
+      - name: Verify published Cloudflare edge
+        if: steps.credentials.outputs.ready == 'true' && success()
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -eu
+          SUBDOMAIN=$(curl --fail --silent --show-error -H "Authorization: Bearer $CF_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/subdomain" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const r=JSON.parse(s);if(!r.success||!r.result?.subdomain)process.exit(1);process.stdout.write(r.result.subdomain)})')
+          URL="https://atlas-team.$SUBDOMAIN.workers.dev/__team/health"
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 "$URL" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const r=JSON.parse(s);if(r.ok!==true||r.hosting!=="cloudflare")process.exit(1)})'
+          echo "Verified edge health at $URL" >> "$GITHUB_STEP_SUMMARY"
+      - name: Report Cloudflare publication
+        if: steps.credentials.outputs.ready == 'true' && success()
+        run: |
+          echo '## Cloudflare publication action completed' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Confirm the Worker URL and /__team/health endpoint before calling Cloudflare primary.' >> "$GITHUB_STEP_SUMMARY"
+; then
+              echo "::error::Invalid TEAM_D1_DATABASE_ID format"
+              exit 1
+            fi
+            printf '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-data"\ndatabase_id = "%s"\n' "$TEAM_D1_DATABASE_ID" >> wrangler.toml
+            echo "TEAM dedicated D1 binding configured" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "TEAM D1 not provisioned; deploying without persistent storage" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Verify Cloudflare Worker can bundle without publishing
         run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/atlas-team-bundle
       - name: Check Cloudflare deployment credentials
