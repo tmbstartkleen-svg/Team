@@ -27,6 +27,11 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Cloudflare deployment not configured; add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets to TEAM."
           fi
+      - name: Report deployment readiness
+        if: steps.credentials.outputs.ready != 'true'
+        run: |
+          echo '## Cloudflare production: NOT DEPLOYED' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Cloudflare credentials are missing from the TEAM repository. Verification passed, but no release was published.' >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy Cloudflare Worker
         if: steps.credentials.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v3
@@ -34,3 +39,8 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+      - name: Report Cloudflare publication
+        if: steps.credentials.outputs.ready == 'true' && success()
+        run: |
+          echo '## Cloudflare publication action completed' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Confirm the Worker URL and /__team/health endpoint before calling Cloudflare primary.' >> "$GITHUB_STEP_SUMMARY"
