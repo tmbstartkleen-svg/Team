@@ -1,9 +1,12 @@
+import {probeTeamDeployment} from '../lib/deployment-probe.mjs';
 import {writeFileSync,mkdirSync} from 'node:fs';
 import {certifyProduction} from '../lib/production-certification.mjs';
 const evidence={};
+const probeUrl=process.env.TEAM_HEALTH_URL;
+const probe=probeUrl?await probeTeamDeployment(probeUrl):{reachable:false,operational:false,status:null,reason:'no_url_configured'};
 const result=certifyProduction(evidence);
 mkdirSync('artifacts',{recursive:true});
-writeFileSync('artifacts/production-readiness.json',JSON.stringify({generatedAt:new Date().toISOString(),source:'static-unverified-build',...result},null,2)+'\n');
+writeFileSync('artifacts/production-readiness.json',JSON.stringify({generatedAt:new Date().toISOString(),source:'runtime-health-informational-only',probe,...result},null,2)+'\n');
 const body=['# TEAM Production Readiness','',`Status: **${result.status.toUpperCase()}**`,`Verified gates: **${result.passed}/${result.total}**`,'',...result.checks.map(x=>`- [${x.passed?'x':' '}] ${x.label}`),'','No live provider or deployment evidence was collected by this report.'];
 writeFileSync('artifacts/production-readiness.md',body.join('\n')+'\n');
-console.log('TEAM production certification:',result.status,result.passed+'/'+result.total);
+console.log('TEAM production certification:',result.status,result.passed+'/'+result.total,'site reachable:',probe.reachable,'runtime operational:',probe.operational);
