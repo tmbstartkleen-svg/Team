@@ -21,3 +21,5 @@ test('stalled task report does not modify data without database',async()=>{const
 test('approval SQL only changes queued pending tasks',async()=>{const {readFileSync}=await import('node:fs');const source=readFileSync(new URL('../api/approve.js',import.meta.url),'utf8');assert.match(source,/approval=\\'pending\\' AND status=\\'queued\\'/)});
 
 test('database readiness probes task query only after schema verified',async()=>{const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../api/database-health.js',import.meta.url),'utf8');assert.match(src,/SELECT 1 FROM team_tasks LIMIT 0/);assert.match(src,/taskQueryVerified/)});
+
+test('database read-only probe does not claim write permissions',async()=>{const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../api/database-health.js',import.meta.url),'utf8');assert.match(src,/let readable=false/);assert.doesNotMatch(src,/let writable=false/)});
