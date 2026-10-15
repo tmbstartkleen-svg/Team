@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {queueMessageDelivery,recordDeliveryResult,claimQueuedMessage} from '../lib/message-delivery.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {queueMessageDelivery,recordDeliveryResult,claimQueuedMessage,quarantineStaleSending} from '../lib/message-delivery.mjs';
 function db(result={message_id:'m1',state:'queued'}){const calls=[];return {calls,prepare(sql){return {bind(...args){calls.push({sql,args});return {first:async()=>result}}}}}}
 test('unauthenticated dispatch cannot queue',async()=>{const x=db();await assert.rejects(()=>queueMessageDelivery(x,{messageId:'m1'}),/authenticated_dispatch_required/);assert.equal(x.calls.length,0)});
 test('queue requires persisted message and protects delivered state',async()=>{const x=db();await queueMessageDelivery(x,{messageId:'m1',authorized:true});assert.match(x.calls[0].sql,/FROM team_messages WHERE id=\?/);assert.match(x.calls[0].sql,/state IN \('draft','failed'\)/)});
@@ -6,3 +6,5 @@ test('delivery cannot be claimed without transport receipt',async()=>{const x=db
 test('failed delivery is recorded without claiming success',async()=>{const x=db();await recordDeliveryResult(x,{messageId:'m1',authorized:true,error:'Transport temporarily unavailable'});assert.equal(x.calls[0].args[0],'failed')});
 
 test('sending requires atomic queued-to-sending claim and attempt cap',async()=>{const x=db();await claimQueuedMessage(x,{messageId:'m1',authorized:true});assert.match(x.calls[0].sql,/state='queued' AND attempt_count<3/);assert.match(x.calls[0].sql,/state='sending'/)});
+
+test('unknown delivery outcome is quarantined rather than retried',async()=>{const x=db();await quarantineStaleSending(x,{messageId:'m1',staleBefore:'2026-10-15T14:00:00Z',authorized:true});assert.match(x.calls[0].sql,/state='needs-reconciliation'/);assert.match(x.calls[0].sql,/state='sending' AND updated_at<\?/);assert.equal(x.calls[0].args[0],'m1')});
