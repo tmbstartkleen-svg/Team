@@ -42,6 +42,6 @@ jobs:
           const items=require('/tmp/team-d1-final.json');
           const d=items.filter(x=>x.name==='atlas-team-data');
           if(d.length!==1||!/^[0-9a-f-]{36}$/i.test(d[0].uuid||''))throw Error('Dedicated D1 ID could not be verified');
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'TEAM D1 database verified. Set GitHub Actions secret TEAM_D1_DATABASE_ID to the UUID shown in Cloudflare D1 dashboard. Do not paste it into chat.\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### Dedicated TEAM D1 verified\\nDatabase ID: `'+d[0].uuid+'`\\nAdd as GitHub Actions secret `TEAM_D1_DATABASE_ID`.\\n');
           console.log('Dedicated TEAM database located and verified; migrations are not applied by this workflow');
           NODE
