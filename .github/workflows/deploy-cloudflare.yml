@@ -68,6 +68,23 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
           wranglerVersion: '4'
+      - name: Configure owner-only API token when explicitly provided
+        if: steps.credentials.outputs.ready == 'true' && success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEAM_OWNER_API_TOKEN: ${{ secrets.TEAM_OWNER_API_TOKEN }}
+        run: |
+          set -eu
+          if [ -n "$TEAM_OWNER_API_TOKEN" ]; then
+            if [ "${#TEAM_OWNER_API_TOKEN}" -lt 32 ]; then
+              echo '::error::TEAM_OWNER_API_TOKEN must be at least 32 characters'; exit 1
+            fi
+            printf '%s' "$TEAM_OWNER_API_TOKEN" | npx --yes wrangler@4 secret put TEAM_OWNER_API_TOKEN
+            echo 'Owner collaboration secret installed on Cloudflare Worker' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Owner collaboration remains disabled; TEAM_OWNER_API_TOKEN not configured' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Verify published Cloudflare edge
         if: steps.credentials.outputs.ready == 'true' && success()
         env:
