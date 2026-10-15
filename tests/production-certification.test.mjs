@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {certifyProduction,PRODUCTION_GATES} from '../lib/production-certification.mjs';
+test('empty evidence blocks production',()=>{const x=certifyProduction();assert.equal(x.certified,false);assert.equal(x.passed,0);assert.equal(x.status,'blocked')});
+test('a green CI assertion cannot alone certify deployment',()=>{const x=certifyProduction({'end-to-end':{passed:true,proof:'All smoke tests passed'}});assert.equal(x.certified,false);assert.equal(x.passed,1)});
+test('all gates require tangible proof and final owner release approval',()=>{const evidence=Object.fromEntries(PRODUCTION_GATES.map(g=>[g.id,{passed:true,proof:'Verified artifact for '+g.id}]));const x=certifyProduction(evidence);assert.equal(x.certified,true);assert.equal(x.ownerReleaseApprovalRequired,true);evidence['secrets'].proof='';assert.equal(certifyProduction(evidence).certified,false)});
