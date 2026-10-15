@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {webcrypto} from 'node:crypto';import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
+globalThis.crypto=webcrypto;
+const token='a'.repeat(40),url='https://example.com/api/owner-collaboration?projectId=sample';
+const req=(method='GET',auth,body)=>new Request(url,{method,headers:auth?{'authorization':'Bearer '+auth}:undefined,body});
+test('owner collaboration denies missing auth and missing secret',async()=>{assert.equal((await handleOwnerCollaboration(req(),{})).status,401);assert.equal((await handleOwnerCollaboration(req(),{TEAM_OWNER_API_TOKEN:token})).status,401);assert.equal((await handleOwnerCollaboration(req('GET','wrong'),{TEAM_OWNER_API_TOKEN:token})).status,401)});
+test('authorized requests fail closed when D1 is missing',async()=>{const r=await handleOwnerCollaboration(req('GET',token),{TEAM_OWNER_API_TOKEN:token});assert.equal(r.status,503)});
+test('owner list reads bound project only',async()=>{let args;const db={prepare(sql){assert.match(sql,/WHERE project_id=\?/);return {bind(...x){args=x;return {all:async()=>({results:[]})}}}}};const r=await handleOwnerCollaboration(req('GET',token),{TEAM_OWNER_API_TOKEN:token,TEAM_DB:db});assert.equal(r.status,200);assert.deepEqual(args,['sample',50])});
+test('rejects invalid POST messages before storage',async()=>{const db={prepare(){throw Error('no query expected')}};const r=await handleOwnerCollaboration(req('POST',token,JSON.stringify({persona:'x',visibility:'project-team',message:''})),{TEAM_OWNER_API_TOKEN:token,TEAM_DB:db});assert.equal(r.status,400)});
