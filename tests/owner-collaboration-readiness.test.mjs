@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {ownerCollaborationReadiness} from '../lib/owner-collaboration-readiness.mjs';
+test('fails closed with no owner secret',()=>{const x=ownerCollaborationReadiness({TEAM_DB:{prepare(){}}});assert.equal(x.readiness,'blocked');assert.equal(x.ownerTokenConfigured,false)});
+test('reports configured but never certified with both dependencies',()=>{const x=ownerCollaborationReadiness({TEAM_DB:{prepare(){}},TEAM_OWNER_API_TOKEN:'x'.repeat(32)});assert.equal(x.readiness,'configured-not-e2e-verified');assert.equal(x.productionCertified,false)});
+test('never exposes token values',()=>{const secret='my-super-secret-token-that-is-more-than-32-characters';assert.equal(JSON.stringify(ownerCollaborationReadiness({TEAM_OWNER_API_TOKEN:secret})).includes(secret),false)});
