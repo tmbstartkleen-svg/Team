@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {transitionTask} from '../lib/task-lifecycle.mjs';
+test('task cannot start without owner approval',()=>assert.throws(()=>transitionTask({state:'queued'},'running'),/owner_approval_required/));
+test('task cannot claim completion without verified evidence',()=>{const r=transitionTask({state:'queued'},'running',{ownerApproved:true});const v=transitionTask(r,'verification');assert.throws(()=>transitionTask(v,'verified'),/verification_evidence_required/);assert.equal(transitionTask(v,'verified',{evidence:'Release passed certified tests'}).complete,true)});
+test('blocked tasks resume only after documented resolution',()=>{const b=transitionTask({state:'queued'},'blocked');assert.throws(()=>transitionTask(b,'queued'),/blocker_resolution_required/);const q=transitionTask(b,'queued',{resolution:'Owner supplied valid credentials'});assert.equal(q.state,'queued');assert.equal(q.complete,false)});
+test('verified tasks cannot silently restart',()=>assert.throws(()=>transitionTask({state:'verified'},'running',{ownerApproved:true})));
