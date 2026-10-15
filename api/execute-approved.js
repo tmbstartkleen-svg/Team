@@ -46,10 +46,10 @@ export default async function handler(req,res){
   const data=JSON.parse(raw);
   const text=outputText(data);
   const record=await withDb(async db=>{
-   const client=await db.connect();try{await client.query('BEGIN');await client.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[task.id,'task.model_completed',JSON.stringify({model,requestId:data.id||null,result:text.slice(0,12000)})]);await client.query("UPDATE team_tasks SET status='completed',updated_at=now() WHERE id=$1 AND status='running'",[task.id]);await client.query('COMMIT')}catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
+   const client=await db.connect();try{await client.query('BEGIN');const updated=await client.query("UPDATE team_tasks SET status='completed',updated_at=now() WHERE id=$1 AND status='running' RETURNING id",[task.id]);if(!updated.rowCount){await client.query('ROLLBACK');return {ok:false,error:'task_state_changed',status:409}}await client.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[task.id,'task.model_completed',JSON.stringify({model,requestId:data.id||null,result:text.slice(0,12000)})]);await client.query('COMMIT')}catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
    return {ok:true};
   });
-  if(!record.ok)return respond(res,503,{ok:false,error:'model_completed_but_history_unavailable'});
+  if(!record.ok)return respond(res,record.status||503,{ok:false,error:record.error||'model_completed_but_history_unavailable'});
   return respond(res,200,{ok:true,taskId:task.id,status:'completed',model,result:text,requestId:data.id||randomUUID()});
  }catch{
   // Do not overwrite completed tasks after a later response or audit failure.
