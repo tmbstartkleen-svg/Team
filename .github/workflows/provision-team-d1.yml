@@ -1,0 +1,47 @@
+name: Provision TEAM Dedicated D1
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type PROVISION-TEAM-D1 to create/prepare the dedicated TEAM database"
+        required: true
+        type: string
+jobs:
+  provision:
+    if: inputs.confirm == 'PROVISION-TEAM-D1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Confirm dedicated database and account access
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx --yes wrangler@4 d1 list --json > /tmp/team-d1-list.json
+          node -e 'const a=require("/tmp/team-d1-list.json");if(!Array.isArray(a))process.exit(1);const matches=a.filter(x=>x.name==="atlas-team-data");if(matches.length>1)process.exit(2);console.log(matches.length?"Existing TEAM D1 found":"Dedicated TEAM D1 creation required")'
+      - name: Create dedicated database only if absent
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          if node -e 'const a=require("/tmp/team-d1-list.json");process.exit(a.some(x=>x.name==="atlas-team-data")?0:1)'; then
+            echo "Reusing existing atlas-team-data"
+          else
+            npx --yes wrangler@4 d1 create atlas-team-data
+          fi
+          npx --yes wrangler@4 d1 list --json > /tmp/team-d1-final.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const items=require('/tmp/team-d1-final.json');
+          const d=items.filter(x=>x.name==='atlas-team-data');
+          if(d.length!==1||!/^[0-9a-f-]{36}$/i.test(d[0].uuid||''))throw Error('Dedicated D1 ID could not be verified');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'TEAM D1 database verified. Set GitHub Actions secret TEAM_D1_DATABASE_ID to the UUID shown in Cloudflare D1 dashboard. Do not paste it into chat.\n');
+          console.log('Dedicated TEAM database located and verified; migrations are not applied by this workflow');
+          NODE
