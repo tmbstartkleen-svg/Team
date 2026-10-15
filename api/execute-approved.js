@@ -25,7 +25,7 @@ export default async function handler(req,res){
    await db.query("UPDATE team_tasks SET status='failed',updated_at=now() WHERE id=$1 AND status='running'",[taskId]);
    return {ok:false,error:'unknown_registered_persona',status:422};
   }
-  await db.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[taskId,'task.model_started',JSON.stringify({model})]);
+  try{await db.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[taskId,'task.model_started',JSON.stringify({model})])}catch{await db.query("UPDATE team_tasks SET status='failed',updated_at=now() WHERE id=$1 AND status='running'",[taskId]);return {ok:false,error:'audit_write_failed',status:503}}
   return {ok:true,task};
  });
  if(!result.ok)return respond(res,result.status||503,{ok:false,error:result.error});
@@ -38,8 +38,7 @@ export default async function handler(req,res){
   const data=JSON.parse(raw);
   const text=outputText(data);
   const record=await withDb(async db=>{
-   await db.query("UPDATE team_tasks SET status='completed',updated_at=now() WHERE id=$1 AND status='running'",[task.id]);
-   await db.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[task.id,'task.model_completed',JSON.stringify({model,requestId:data.id||null,result:text.slice(0,12000)})]);
+   const client=await db.connect();try{await client.query('BEGIN');await client.query('INSERT INTO team_events(task_id,event_type,details) VALUES($1,$2,$3)',[task.id,'task.model_completed',JSON.stringify({model,requestId:data.id||null,result:text.slice(0,12000)})]);await client.query("UPDATE team_tasks SET status='completed',updated_at=now() WHERE id=$1 AND status='running'",[task.id]);await client.query('COMMIT')}catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
    return {ok:true};
   });
   if(!record.ok)return respond(res,503,{ok:false,error:'model_completed_but_history_unavailable'});
