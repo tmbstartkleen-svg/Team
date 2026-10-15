@@ -5,7 +5,7 @@ export default function handler(req,res){
  const state=readiness();
  const configured=Boolean(process.env.TEAM_ADMIN_TOKEN&&process.env.OPENAI_API_KEY&&process.env.TEAM_DATABASE_URL);
  return res.status(200).json({
-  ok:true,service:'atlas-team',version:'0.18.0',executionConfigured:configured,
+  ok:true,service:'atlas-team',version:'0.33.0',releaseCommit:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null,executionConfigured:configured,
   modelConfigured:Boolean(process.env.OPENAI_API_KEY),accessConfigured:Boolean(process.env.TEAM_ADMIN_TOKEN),
   mode:'approval-gated-server',
   productionOperational:false,
