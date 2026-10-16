@@ -1,0 +1,35 @@
+name: TEAM Live D1 Execution Readiness
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Bind dedicated TEAM database
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEAM_D1_DATABASE_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+        run: |
+          set -eu
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" && test -n "$TEAM_D1_DATABASE_ID" || { echo '::error::Missing TEAM D1 credentials'; exit 1; }
+          case "$TEAM_D1_DATABASE_ID" in *[!0-9a-fA-F-]*|'') echo '::error::Invalid D1 ID'; exit 1;; esac
+          printf '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-data"\ndatabase_id = "%s"\n' "$TEAM_D1_DATABASE_ID" >> wrangler.toml
+      - name: Inspect production schema without modifying data
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('team_tasks','team_approval_audit','team_execution_receipts') ORDER BY name" > /tmp/team-d1-tables.json
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "PRAGMA table_info('team_execution_receipts')" > /tmp/team-d1-receipt-columns.json
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='trigger' AND name IN ('team_execution_receipts_no_update','team_execution_receipts_no_delete') ORDER BY name" > /tmp/team-d1-triggers.json
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "PRAGMA foreign_key_check" > /tmp/team-d1-foreign-keys.json
+          node scripts/certify-live-d1-readiness.mjs
