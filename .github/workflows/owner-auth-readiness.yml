@@ -1,0 +1,22 @@
+name: TEAM Owner Auth Readiness
+on:
+  workflow_dispatch:
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect owner authentication secret presence without revealing value
+        env:
+          TOKEN: ${{ secrets.TEAM_OWNER_API_TOKEN }}
+        run: |
+          set -eu
+          if [ "${#TOKEN}" -ge 32 ]; then
+            echo "Owner API token is configured in GitHub. Run the regular Cloudflare deployment to synchronize it." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Owner API token absent or too short. Create GitHub Actions secret TEAM_OWNER_API_TOKEN with at least 32 random characters." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Check production readiness endpoint without credentials
+        run: |
+          set -eu
+          curl --fail --silent --show-error "https://atlas-team.tmbstartkleen.workers.dev/api/owner-collaboration-readiness" > /tmp/team-auth-readiness.json
+          node -e 'const x=require("/tmp/team-auth-readiness.json");if(x.ok!==true||x.productionCertified!==false)throw Error("Unexpected public readiness format");console.log(JSON.stringify(x))'
