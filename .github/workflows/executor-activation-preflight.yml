@@ -1,0 +1,41 @@
+name: TEAM Executor Activation Preflight
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate configured credentials and model (no execution)
+        env:
+          OWNER_TOKEN: ${{ secrets.TEAM_OWNER_API_TOKEN }}
+          EXECUTOR_TOKEN: ${{ secrets.TEAM_EXECUTOR_TOKEN }}
+          PROVIDER_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EXECUTOR_MODEL: ${{ vars.TEAM_EXECUTOR_MODEL }}
+          ALLOWED_MODELS: ${{ vars.TEAM_ALLOWED_MODELS }}
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const checks=[
+            ['owner-secret-configured',String(process.env.OWNER_TOKEN||'').length>=32],
+            ['executor-secret-configured',String(process.env.EXECUTOR_TOKEN||'').length>=32],
+            ['provider-key-configured',Boolean(process.env.PROVIDER_KEY)],
+            ['model-configured',/^[A-Za-z0-9._:-]{1,128}$/.test(process.env.EXECUTOR_MODEL||'')],
+            ['model-in-allowlist',(process.env.ALLOWED_MODELS||'').split(',').map(x=>x.trim()).includes(process.env.EXECUTOR_MODEL||'__missing__')]
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## TEAM executor configuration preflight (no execution)\n\n'+checks.map(([name,ok])=>'- '+name+': '+(ok?'PASS':'BLOCKED')).join('\n')+'\n\nThis validates GitHub inputs only, not installed Cloudflare secrets, provider network access, or task execution.\n');
+          if(checks.some(([,ok])=>!ok))process.exitCode=1;
+          NODE
+      - name: Check production schema and owner authorization readiness
+        run: |
+          set -eu
+          curl --fail --silent --show-error --max-time 20 'https://atlas-team.tmbstartkleen.workers.dev/api/launch-readiness' > /tmp/team-activation-readiness.json
+          node - <<'NODE'
+          const fs=require('node:fs'),r=JSON.parse(fs.readFileSync('/tmp/team-activation-readiness.json','utf8'));
+          const ids=['database-binding','database-schema','executor-database-schema','owner-credential'];
+          if(r.ok!==true||!Array.isArray(r.checks))throw Error('invalid_launch_readiness');
+          const checks=ids.map(id=>[id,r.checks.find(x=>x.id===id)?.ready===true]);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n## Live read-only launch gates\n'+checks.map(([id,ok])=>'- '+id+': '+(ok?'PASS':'BLOCKED')).join('\n')+'\nNo task execution or activation was attempted.\n');
+          if(checks.some(([,ok])=>!ok))process.exitCode=1;
+          NODE
