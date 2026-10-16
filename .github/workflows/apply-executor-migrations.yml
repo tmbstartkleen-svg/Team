@@ -1,0 +1,60 @@
+name: Apply TEAM Executor Migrations
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type APPLY-TEAM-0006-0007 to authorize production schema changes'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: atlas-team-d1-schema
+  cancel-in-progress: false
+jobs:
+  migrate:
+    if: inputs.confirm == 'APPLY-TEAM-0006-0007'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Bind dedicated production database
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEAM_D1_DATABASE_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+        run: |
+          set -eu
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" && test -n "$TEAM_D1_DATABASE_ID"
+          printf '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-data"\ndatabase_id = "%s"\n' "$TEAM_D1_DATABASE_ID" >> wrangler.toml
+      - name: Confirm baseline task columns and absent new tables
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('team_tasks','team_approval_audit','team_execution_receipts')" > /tmp/team-baseline.json
+          node - <<'NODE'
+          const r=require('/tmp/team-baseline.json');
+          if(r[0]?.success!==true)throw Error('remote_preflight_failed');
+          const n=new Set((r[0].results||[]).map(x=>x.name));
+          if(!n.has('team_tasks'))throw Error('missing_team_tasks');
+          if(n.has('team_approval_audit')||n.has('team_execution_receipts'))throw Error('unexpected_existing_tables_manual_review_required');
+          NODE
+      - name: Apply approval and receipt schemas only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --file migrations/0006_approval_audit.sql
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --file migrations/0007_execution_receipts.sql
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('team_approval_audit','team_execution_receipts')" > /tmp/team-post.json
+          node - <<'NODE'
+          const r=require('/tmp/team-post.json');const t=new Set((r[0]?.results||[]).map(x=>x.name));
+          if(!t.has('team_approval_audit')||!t.has('team_execution_receipts'))throw Error('migration_incomplete');
+          NODE
+          echo 'Migrations 0006 and 0007 installed. Executor remains disabled.' >> "$GITHUB_STEP_SUMMARY"
