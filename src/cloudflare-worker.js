@@ -1,3 +1,4 @@
+import {handleOwnerProjects} from '../lib/owner-projects-api.mjs';
 import {ownerCollaborationReadiness} from '../lib/owner-collaboration-readiness.mjs';
 import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
 import {inspectTeamDatabase} from '../lib/d1-readiness.mjs';
@@ -10,6 +11,7 @@ export default {
   if(url.pathname==='/api/health'&&request.method==='GET')return new Response(JSON.stringify({ok:true,service:'atlas-team',hosting:'cloudflare',mode:'edge-ui-with-standby-api',productionOperational:false,modelConfigured:false,executionConfigured:false,databaseSchemaVerified:false,backendVerified:false,microsoft365Connected:false,monitoringActive:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/database-readiness'&&request.method==='GET'){const data=await inspectTeamDatabase(env.TEAM_DB);return new Response(JSON.stringify({ok:true,hosting:'cloudflare',database:data,agentsActive:false}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}})}
   if(url.pathname==='/api/owner-collaboration-readiness'&&request.method==='GET')return new Response(JSON.stringify({ok:true,...ownerCollaborationReadiness(env)}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+  if(url.pathname==='/api/owner-projects')return handleOwnerProjects(request,env);
   if(url.pathname==='/api/owner-collaboration')return handleOwnerCollaboration(request,env);
   if(url.pathname==='/api/integrations'){
    if(request.method!=='GET')return new Response(JSON.stringify({ok:false,error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json','allow':'GET','cache-control':'no-store'}});
