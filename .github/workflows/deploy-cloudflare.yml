@@ -147,6 +147,27 @@ jobs:
           require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\n');
           if(r.betaReady!==true)console.log('Deployment reachable; operational beta NOT certified');
           NODE
+      - name: Fail closed if executor enabled without complete schema
+        if: steps.credentials.outputs.ready == 'true' && success()
+        env:
+          TEAM_EXECUTOR_ENABLED: ${{ vars.TEAM_EXECUTOR_ENABLED }}
+        run: |
+          set -eu
+          if [ "$TEAM_EXECUTOR_ENABLED" != 'true' ]; then
+            echo 'Executor activation not requested; remaining disabled' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node - <<'NODE'
+          const readiness=require('/tmp/team-launch-readiness.json');
+          const schema=readiness.checks?.find(x=>x.id==='executor-database-schema');
+          const owner=readiness.checks?.find(x=>x.id==='owner-credential');
+          if(schema?.ready!==true||owner?.ready!==true){
+            console.error('Executor activation blocked: database migrations or owner authentication not verified');
+            process.exit(1);
+          }
+          console.log('Schema and owner preconditions verified; live execution still needs a separate authorization and certification');
+          NODE
+          echo 'Executor schema and owner preconditions passed; execution is NOT enabled by this workflow' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify published Cloudflare edge
         if: steps.credentials.outputs.ready == 'true' && success()
         env:
