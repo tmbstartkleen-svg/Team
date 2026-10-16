@@ -85,6 +85,26 @@ jobs:
           else
             echo 'Owner collaboration remains disabled; TEAM_OWNER_API_TOKEN not configured' >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Install executor credentials without enabling execution
+        if: steps.credentials.outputs.ready == 'true' && success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEAM_EXECUTOR_TOKEN: ${{ secrets.TEAM_EXECUTOR_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -eu
+          if [ -z "$TEAM_EXECUTOR_TOKEN" ] || [ -z "$OPENAI_API_KEY" ]; then
+            echo 'Executor credential provisioning incomplete; execution remains disabled' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "${#TEAM_EXECUTOR_TOKEN}" -lt 32 ]; then
+            echo '::error::TEAM_EXECUTOR_TOKEN must have at least 32 characters'
+            exit 1
+          fi
+          printf '%s' "$TEAM_EXECUTOR_TOKEN" | npx --yes wrangler@4 secret put TEAM_EXECUTOR_TOKEN >/dev/null
+          printf '%s' "$OPENAI_API_KEY" | npx --yes wrangler@4 secret put OPENAI_API_KEY >/dev/null
+          echo 'Executor service credentials installed; TEAM_EXECUTOR_ENABLED remains opt-in and defaults off' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify deployed D1 binding when configured
         if: steps.credentials.outputs.ready == 'true' && success()
         env:
