@@ -1,6 +1,11 @@
 name: Audit TEAM Production D1
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-production-d1.yml'
+      - 'scripts/inspect-remote-d1.mjs'
 permissions:
   contents: read
 jobs:
