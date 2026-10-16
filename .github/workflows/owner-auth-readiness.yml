@@ -11,7 +11,7 @@ jobs:
         run: |
           set -eu
           if [ "${#TOKEN}" -ge 32 ]; then
-            echo "Owner API token is configured in GitHub. Run the regular Cloudflare deployment to synchronize it." >> "$GITHUB_STEP_SUMMARY"
+            echo "Owner API token is configured in GitHub. A deployment is still needed to synchronize it to Cloudflare." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Owner API token absent or too short. Create GitHub Actions secret TEAM_OWNER_API_TOKEN with at least 32 random characters." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -19,4 +19,23 @@ jobs:
         run: |
           set -eu
           curl --fail --silent --show-error "https://atlas-team.tmbstartkleen.workers.dev/api/owner-collaboration-readiness" > /tmp/team-auth-readiness.json
-          node -e 'const x=require("/tmp/team-auth-readiness.json");if(x.ok!==true||x.productionCertified!==false)throw Error("Unexpected public readiness format");console.log(JSON.stringify(x))'
+          node -e 'const x=require("/tmp/team-auth-readiness.json");if(x.ok!==true||x.productionCertified!==false)throw Error("Unexpected public readiness format");console.log(JSON.stringify(x));if(!x.databaseBound)process.exitCode=1'
+      - name: Check owner secret synchronization with deployed Worker
+        env:
+          TOKEN: ${{ secrets.TEAM_OWNER_API_TOKEN }}
+        run: |
+          set -eu
+          node - <<'NODE'
+          const fs=require('fs');
+          const readiness=JSON.parse(fs.readFileSync('/tmp/team-auth-readiness.json','utf8'));
+          const configured=process.env.TOKEN?.length>=32;
+          if(configured&&!readiness.ownerTokenConfigured){
+            console.error('::error::Owner token exists in GitHub but is not active on Cloudflare. Re-run Cloudflare deploy.');
+            process.exit(1);
+          }
+          if(!configured&&readiness.ownerTokenConfigured){
+            console.error('::error::Owner token exists on Worker but no matching GitHub secret can be verified.');
+            process.exit(1);
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,configured?'Owner secret presence matches deployed Worker.\n':'Owner secret not configured; authenticated collaboration remains blocked.\n');
+          NODE
