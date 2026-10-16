@@ -34,6 +34,28 @@ jobs:
           else
             echo "TEAM D1 not provisioned; persistent storage inactive" >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Configure explicit AI model bindings without activation
+        env:
+          EXECUTOR_MODEL: ${{ vars.TEAM_EXECUTOR_MODEL }}
+          ALLOWED_MODELS: ${{ vars.TEAM_ALLOWED_MODELS }}
+        run: |
+          set -eu
+          if [ -z "$EXECUTOR_MODEL" ] && [ -z "$ALLOWED_MODELS" ]; then
+            echo 'Executor model and allowlist not configured; AI execution remains unavailable' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ -z "$EXECUTOR_MODEL" ] || [ -z "$ALLOWED_MODELS" ]; then
+            echo '::error::TEAM_EXECUTOR_MODEL and TEAM_ALLOWED_MODELS must both be configured'
+            exit 1
+          fi
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const model=process.env.EXECUTOR_MODEL;
+          const models=process.env.ALLOWED_MODELS.split(',').map(s=>s.trim()).filter(Boolean);
+          if(!/^[a-zA-Z0-9._:-]{1,128}$/.test(model)||!models.length||models.length>32||models.some(x=>!/^[a-zA-Z0-9._:-]{1,128}$/.test(x))||!models.includes(model))throw Error('executor_model_not_allowlisted_or_invalid');
+          fs.appendFileSync('wrangler.toml','\nTEAM_EXECUTOR_MODEL = '+JSON.stringify(model)+'\nTEAM_ALLOWED_MODELS = '+JSON.stringify(models.join(','))+'\n');
+          NODE
+          echo 'Executor model and allowlist configured; executor remains disabled' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify Cloudflare Worker can bundle without publishing
         run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/atlas-team-bundle
       - name: Check Cloudflare deployment credentials
