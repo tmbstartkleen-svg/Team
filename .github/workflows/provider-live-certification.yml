@@ -10,9 +10,9 @@ jobs:
     steps:
       - name: Perform one bounded, analysis-only model request
         env:
-          OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
-          EXECUTOR_MODEL: \${{ vars.TEAM_EXECUTOR_MODEL }}
-          ALLOWED_MODELS: \${{ vars.TEAM_ALLOWED_MODELS }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EXECUTOR_MODEL: ${{ vars.TEAM_EXECUTOR_MODEL }}
+          ALLOWED_MODELS: ${{ vars.TEAM_ALLOWED_MODELS }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
