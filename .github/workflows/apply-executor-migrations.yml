@@ -81,4 +81,12 @@ jobs:
           const r=require('/tmp/team-post.json');const t=new Set((r[0]?.results||[]).map(x=>x.name));
           if(!t.has('team_approval_audit')||!t.has('team_execution_receipts'))throw Error('migration_incomplete');
           NODE
-          echo 'Migrations 0006 and 0007 installed. Executor remains disabled.' >> "$GITHUB_STEP_SUMMARY"
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='trigger' AND name IN ('team_approval_audit_no_update','team_approval_audit_no_delete','team_execution_receipts_no_update','team_execution_receipts_no_delete')" > /tmp/team-triggers.json
+          node - <<'NODE'
+          const r=require('/tmp/team-triggers.json');
+          if(r[0]?.success!==true)throw Error('trigger_query_failed');
+          const actual=new Set((r[0].results||[]).map(row=>row.name));
+          const required=['team_approval_audit_no_update','team_approval_audit_no_delete','team_execution_receipts_no_update','team_execution_receipts_no_delete'];
+          if(required.some(name=>!actual.has(name)))throw Error('immutable_audit_triggers_missing');
+          NODE
+          echo 'Migrations 0006 and 0007 and all immutable audit triggers verified. Executor remains disabled.' >> "$GITHUB_STEP_SUMMARY"
