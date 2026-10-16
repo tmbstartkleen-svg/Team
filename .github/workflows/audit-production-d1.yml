@@ -1,6 +1,9 @@
 name: Audit TEAM Production D1
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ['Apply TEAM Executor Migrations']
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -10,6 +13,7 @@ permissions:
   contents: read
 jobs:
   inspect-d1:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
