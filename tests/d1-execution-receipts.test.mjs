@@ -6,7 +6,7 @@ test('verification and receipt share one bounded D1 transaction',async()=>{
  const calls=[];
  const db={prepare(sql){return {bind(...args){calls.push({sql,args});return {sql,args}}}},batch:async()=>[{results:[{id:'task_1'}]},{results:[{id:'receipt-123456'}]}]};
  assert.equal((await verifyTaskWithReceipt(db,input)).recorded,true);
- assert.match(calls[0].sql,/state='running' AND lease_token=\?/);
+ assert.match(calls[0].sql,/state='running' AND owner_approved=1 AND lease_token=\?/);
  assert.match(calls[0].sql,/datetime\(lease_until\)>datetime\('now'\)/);
  assert.match(calls[1].sql,/changes\(\)=1/);
 });
@@ -35,4 +35,11 @@ test('a rejected D1 batch cannot report a successful verification',async()=>{
 test('partial batch responses are rejected as unverifiable',async()=>{
  const db={prepare(sql){return {bind(...args){return {sql,args}}}},batch:async()=>[{results:[{id:'task_1'}]},{results:[]}]};
  await assert.rejects(()=>verifyTaskWithReceipt(db,input),/verification_not_recorded/);
+});
+
+test('final completion must still have explicit owner approval',async()=>{
+ const statements=[];
+ const db={prepare(sql){return {bind(...args){statements.push({sql,args});return {sql,args}}}},batch:async()=>[{results:[{id:'task_1'}]},{results:[{id:'receipt-123456'}]}]};
+ await verifyTaskWithReceipt(db,input);
+ assert.match(statements[0].sql,/state='running' AND owner_approved=1 AND lease_token=\?/);
 });
