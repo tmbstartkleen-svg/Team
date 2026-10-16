@@ -2,6 +2,7 @@ import {handleOwnerWorkspace} from '../lib/owner-workspace-api.mjs';
 import {handleOwnerProjects} from '../lib/owner-projects-api.mjs';
 import {handleOwnerApprovalHistory} from '../lib/owner-approval-history-api.mjs';
 import {handleOwnerApproval} from '../lib/owner-approval-api.mjs';
+import {handleExecutorRun} from '../lib/executor-run-api.mjs';
 import {handleOwnerTaskPreflight} from '../lib/owner-task-claim-api.mjs';
 import {ownerCollaborationReadiness} from '../lib/owner-collaboration-readiness.mjs';
 import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
@@ -23,6 +24,7 @@ export default {
   if(url.pathname==='/api/owner-projects')return handleOwnerProjects(request,env);
   if(url.pathname==='/api/owner-approval-history')return handleOwnerApprovalHistory(request,env);
   if(url.pathname==='/api/owner-approval')return handleOwnerApproval(request,env);
+  if(url.pathname==='/api/internal-executor-run')return handleExecutorRun(request,env);
   if(url.pathname==='/api/owner-task-preflight')return handleOwnerTaskPreflight(request,env);
   if(url.pathname==='/api/owner-collaboration')return handleOwnerCollaboration(request,env);
   if(url.pathname==='/api/integrations'){
