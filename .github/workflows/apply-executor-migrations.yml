@@ -44,6 +44,30 @@ jobs:
           if(!n.has('team_tasks'))throw Error('missing_team_tasks');
           if(n.has('team_approval_audit')||n.has('team_execution_receipts'))throw Error('unexpected_existing_tables_manual_review_required');
           NODE
+      - name: Export and encrypt production backup before schema changes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEAM_D1_BACKUP_ENCRYPTION_KEY: ${{ secrets.TEAM_D1_BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -eu
+          if [ "${#TEAM_D1_BACKUP_ENCRYPTION_KEY}" -lt 32 ]; then
+            echo '::error::TEAM_D1_BACKUP_ENCRYPTION_KEY must be configured (32+ characters) before changing production D1'
+            exit 1
+          fi
+          npx --yes wrangler@4 d1 export atlas-team-data --remote --output /tmp/team-before-migration.sql
+          test -s /tmp/team-before-migration.sql || { echo '::error::Production D1 export was empty'; exit 1; }
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in /tmp/team-before-migration.sql -out /tmp/team-before-migration.sql.enc -pass env:TEAM_D1_BACKUP_ENCRYPTION_KEY
+          test -s /tmp/team-before-migration.sql.enc
+          rm -f /tmp/team-before-migration.sql
+          echo 'Encrypted pre-migration backup created for protected artifact upload' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain encrypted production backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-team-encrypted-d1-pre-migration
+          path: /tmp/team-before-migration.sql.enc
+          if-no-files-found: error
+          retention-days: 7
       - name: Apply approval and receipt schemas only
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
