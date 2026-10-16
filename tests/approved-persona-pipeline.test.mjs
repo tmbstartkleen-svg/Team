@@ -28,3 +28,41 @@ test('invalid executor identity fails before task claim',async()=>{
  await assert.rejects(()=>executeApprovedPersonaTask({...args,db,leaseToken:'short',fetcher:async()=>new Response('{}')}),TypeError);
  assert.equal(db.calls.length,0);
 });
+
+test('Cloudflare Workers AI executes an owner-approved queued task and records receipt',async()=>{
+ const db=database();let calls=0;
+ const result=await executeApprovedPersonaTask({...args,db,provider:'cloudflare',ai:{run:async(model,payload)=>{
+  calls++;assert.equal(model,'@cf/zai-org/glm-4.7-flash');
+  assert.equal(payload.messages[1].content,args.taskTitle);
+  return {response:'Review the lease-recovery tests and log any remaining issues.'};
+ }}});
+ assert.equal(calls,1);
+ assert.equal(result.ok,true);
+ assert.equal(result.state,'verified');
+ assert.equal(result.receiptId,args.receiptId);
+ assert.equal(result.externalActionsPerformed,false);
+ assert.ok(db.calls.some(x=>x.sql.includes('team_execution_receipts')));
+});
+test('unapproved Cloudflare task cannot invoke model or insert a receipt',async()=>{
+ const db=database({claim:false});let calls=0;
+ const result=await executeApprovedPersonaTask({...args,db,provider:'cloudflare',ai:{run:async()=>{calls++;return {response:'no'};}}});
+ assert.equal(result.ok,false);
+ assert.equal(calls,0);
+ assert.ok(!db.calls.some(x=>x.sql.includes('team_execution_receipts')));
+});
+test('Cloudflare model failure blocks claimed task without recording receipt',async()=>{
+ const db=database();let calls=0;
+ const result=await executeApprovedPersonaTask({...args,db,provider:'cloudflare',ai:{run:async()=>{calls++;throw Error('inference_unavailable')}}});
+ assert.equal(calls,1);
+ assert.equal(result.ok,false);
+ assert.equal(result.state,'blocked');
+ assert.ok(db.calls.some(x=>x.sql.includes("blocker_reason=?")));
+ assert.ok(!db.calls.some(x=>x.sql.includes('team_execution_receipts')));
+});
+test('receipt rejection never returns success for Cloudflare task',async()=>{
+ const db=database({receipt:false});
+ const result=await executeApprovedPersonaTask({...args,db,provider:'cloudflare',ai:{run:async()=>({response:'Analysis completed for owner review.'})}});
+ assert.equal(result.ok,false);
+ assert.equal(result.state,'blocked');
+ assert.ok(db.calls.some(x=>x.sql.includes("blocker_reason=?")));
+});
