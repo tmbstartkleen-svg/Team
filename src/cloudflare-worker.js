@@ -5,6 +5,7 @@ import {handleOwnerApproval} from '../lib/owner-approval-api.mjs';
 import {ownerCollaborationReadiness} from '../lib/owner-collaboration-readiness.mjs';
 import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
 import {inspectTeamDatabase} from '../lib/d1-readiness.mjs';
+import {assessPersonaExecution} from '../lib/persona-execution-readiness.mjs';
 import {assessLaunchReadiness} from '../lib/launch-readiness.mjs';
 import {buildPlan} from '../lib/orchestration.mjs';
 const BACKEND_PATH=/^\/api\/[a-z0-9-]+\/?$/i;
@@ -14,6 +15,7 @@ export default {
   if(url.pathname==='/__team/health')return new Response(JSON.stringify({ok:true,service:'atlas-team-edge',hosting:'cloudflare',backend:'vercel-standby',backendVerified:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/health'&&request.method==='GET')return new Response(JSON.stringify({ok:true,service:'atlas-team',hosting:'cloudflare',mode:'edge-ui-with-standby-api',productionOperational:false,modelConfigured:false,executionConfigured:false,databaseSchemaVerified:false,backendVerified:false,microsoft365Connected:false,monitoringActive:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/launch-readiness'&&request.method==='GET'){const data=await assessLaunchReadiness(env);return new Response(JSON.stringify(data),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}})}
+  if(url.pathname==='/api/persona-execution-readiness'&&request.method==='GET')return new Response(JSON.stringify({ok:true,...assessPersonaExecution(env)}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/database-readiness'&&request.method==='GET'){const data=await inspectTeamDatabase(env.TEAM_DB);return new Response(JSON.stringify({ok:true,hosting:'cloudflare',database:data,agentsActive:false}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}})}
   if(url.pathname==='/api/owner-collaboration-readiness'&&request.method==='GET')return new Response(JSON.stringify({ok:true,...ownerCollaborationReadiness(env)}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
   if(url.pathname==='/api/owner-workspace')return handleOwnerWorkspace(request,env);
