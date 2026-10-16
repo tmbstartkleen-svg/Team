@@ -145,6 +145,13 @@ jobs:
             'A successful deployment is not evidence of autonomous AI execution.'
           ].join('\n');
           require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\n');
+          const executorSchema=r.checks.find(x=>x.id==='executor-database-schema');
+          if(!executorSchema?.ready){
+            require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n**Executor schema: BLOCKED. Apply and verify TEAM migrations 0001-0007 before enabling live inference.**\n');
+            console.log('Executor schema not verified; execution must remain disabled');
+          }else{
+            require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n**Executor schema: VERIFIED (live D1 readiness probe). Live inference remains uncertified.**\n');
+          }
           if(r.betaReady!==true)console.log('Deployment reachable; operational beta NOT certified');
           NODE
       - name: Fail closed if executor enabled without complete schema
