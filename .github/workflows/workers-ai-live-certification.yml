@@ -25,16 +25,16 @@ jobs:
               const response=await fetch('https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(process.env.CF_ACCOUNT)+'/ai/run/@cf/zai-org/glm-4.7-flash',{
                 method:'POST',signal:controller.signal,
                 headers:{authorization:'Bearer '+process.env.CF_TOKEN,'content-type':'application/json'},
-                body:JSON.stringify({messages:[{role:'user',content:'Say READY.'}],max_tokens:64})
+                body:JSON.stringify({messages:[{role:'user',content:'Say READY.'}],max_tokens:384})
               });
               if(!response.ok){summary(false,'Cloudflare returned HTTP '+response.status+'; verify AI Run permissions, model availability, and free quota');process.exitCode=1;return;}
               const body=await response.text();
               if(body.length>32000)throw Error('response_too_large');
               const parsed=JSON.parse(body);
               const result=parsed.result||parsed;
-              const output=result.response||result.output_text||result.choices?.[0]?.message?.content||'';
+              const output=result.response||result.output_text||result.choices?.[0]?.message?.content||result.output?.[0]?.content?.[0]?.text||'';
               const valid=parsed.success!==false&&typeof output==='string'&&output.trim().length>0;
-              summary(valid,valid?'Live model returned a non-empty text response':'No recognized text response');
+              summary(valid,valid?'Live model returned a non-empty text response':'No recognized text response; result fields: '+Object.keys(result).filter(x=>/^[a-z_]{1,24}$/i.test(x)).slice(0,12).join(', '));
               if(!valid)process.exitCode=1;
             }catch(e){summary(false,'Request timeout or invalid response');process.exitCode=1;}
             finally{clearTimeout(timeout);}
