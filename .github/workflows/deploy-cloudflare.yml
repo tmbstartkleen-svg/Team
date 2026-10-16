@@ -129,6 +129,25 @@ jobs:
             node -e 'const x=require("/tmp/team-auth-response.json");if(x.ok!==false||x.error!=="unauthorized")process.exit(1)'
           done
           echo 'Unauthenticated collaboration GET and POST correctly denied.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify configured owner can read collaboration without changing data
+        if: steps.credentials.outputs.ready == 'true' && success()
+        env:
+          TEAM_OWNER_API_TOKEN: ${{ secrets.TEAM_OWNER_API_TOKEN }}
+        run: |
+          set -eu
+          if [ -z "$TEAM_OWNER_API_TOKEN" ]; then
+            echo 'Owner token not configured; authenticated smoke test deferred' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          CODE=$(curl --silent --show-error --output /tmp/team-owner-read.json --write-out '%{http_code}' --get 'https://atlas-team.tmbstartkleen.workers.dev/api/owner-collaboration' --data-urlencode 'projectId=owner-auth-smoke-probe' --header "Authorization: Bearer $TEAM_OWNER_API_TOKEN")
+          if [ "$CODE" = '503' ]; then
+            echo '::error::Authenticated owner request could not access D1'; exit 1
+          fi
+          if [ "$CODE" != '200' ]; then
+            echo "::error::Authenticated owner request returned HTTP $CODE"; exit 1
+          fi
+          node -e 'const x=require("/tmp/team-owner-read.json");if(x.ok!==true||!Array.isArray(x.messages))process.exit(1)'
+          echo 'Authenticated read-only owner collaboration smoke check passed' >> "$GITHUB_STEP_SUMMARY"
       - name: Report Cloudflare publication
         if: steps.credentials.outputs.ready == 'true' && success()
         run: |
