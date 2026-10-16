@@ -115,6 +115,20 @@ jobs:
           URL="https://atlas-team.$SUBDOMAIN.workers.dev/__team/health"
           curl --fail --silent --show-error --retry 3 --retry-delay 3 "$URL" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const r=JSON.parse(s);if(r.ok!==true||r.hosting!=="cloudflare")process.exit(1)})'
           echo "Verified edge health at $URL" >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify private collaboration rejects unauthenticated requests
+        if: steps.credentials.outputs.ready == 'true' && success()
+        run: |
+          set -eu
+          URL='https://atlas-team.tmbstartkleen.workers.dev/api/owner-collaboration?projectId=security-probe'
+          for method in GET POST; do
+            CODE=$(curl --silent --show-error --output /tmp/team-auth-response.json --write-out '%{http_code}' --request "$method" --header 'content-type: application/json' --data-binary '{}' "$URL")
+            if [ "$CODE" != '401' ]; then
+              echo "::error::Unauthenticated $method returned HTTP $CODE instead of 401"
+              exit 1
+            fi
+            node -e 'const x=require("/tmp/team-auth-response.json");if(x.ok!==false||x.error!=="unauthorized")process.exit(1)'
+          done
+          echo 'Unauthenticated collaboration GET and POST correctly denied.' >> "$GITHUB_STEP_SUMMARY"
       - name: Report Cloudflare publication
         if: steps.credentials.outputs.ready == 'true' && success()
         run: |
