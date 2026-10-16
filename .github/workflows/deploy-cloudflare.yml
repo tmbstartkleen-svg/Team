@@ -148,6 +148,17 @@ jobs:
           fi
           node -e 'const x=require("/tmp/team-owner-read.json");if(x.ok!==true||!Array.isArray(x.messages))process.exit(1)'
           echo 'Authenticated read-only owner collaboration smoke check passed' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify private project API denies unauthenticated access
+        if: steps.credentials.outputs.ready == 'true' && success()
+        run: |
+          set -eu
+          URL='https://atlas-team.tmbstartkleen.workers.dev/api/owner-projects'
+          for method in GET POST; do
+            CODE=$(curl --silent --show-error --output /tmp/team-project-denial.json --write-out '%{http_code}' --request "$method" --header 'content-type: application/json' --data-binary '{}' "$URL")
+            if [ "$CODE" != '401' ]; then echo "::error::Anonymous projects $method returned $CODE"; exit 1; fi
+            node -e 'const x=require("/tmp/team-project-denial.json");if(x.error!=="unauthorized")process.exit(1)'
+          done
+          echo 'Anonymous project listing and creation correctly denied.' >> "$GITHUB_STEP_SUMMARY"
       - name: Report Cloudflare publication
         if: steps.credentials.outputs.ready == 'true' && success()
         run: |
