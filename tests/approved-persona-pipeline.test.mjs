@@ -4,7 +4,7 @@ import {executeApprovedPersonaTask} from '../lib/approved-persona-pipeline.mjs';
 const args={taskId:'task-1',leaseToken:'lease-123456789012345',receiptId:'receipt-123456789',leaseUntil:'2099-01-01T00:00:00Z',persona:'QA Engineer',taskTitle:'Review all task lease recovery safeguards',apiKey:'test-key',model:'gpt-test'};
 function database({claim=true,receipt=true}={}){
  const calls=[];
- return {calls,prepare(sql){return {bind(...params){calls.push({sql,params});return {first:async()=>sql.includes('owner_approved=1')?(claim?{id:args.taskId}:null):{id:args.taskId},all:async()=>({results:[]})}}}},batch:async()=>receipt?[{results:[{id:args.taskId}]},{results:[{id:args.receiptId}]}]:[{results:[]},{results:[]}]};
+ return {calls,prepare(sql){return {bind(...params){calls.push({sql,params});return {first:async()=>sql.startsWith('SELECT id,title,assigned_persona')?{id:args.taskId,title:args.taskTitle,assigned_persona:args.persona,state:'queued',owner_approved:claim?1:0}:sql.includes('owner_approved=1')?(claim?{id:args.taskId}:null):{id:args.taskId},all:async()=>({results:[]})}}}},batch:async()=>receipt?[{results:[{id:args.taskId}]},{results:[{id:args.receiptId}]}]:[{results:[]},{results:[]}]};
 }
 test('never calls provider without an approved queued task claim',async()=>{
  let called=false;const db=database({claim:false});
