@@ -14,8 +14,8 @@ const requiredTriggers=['team_execution_receipts_no_update','team_execution_rece
 const missing=[...requiredTables.filter(x=>!tables.has(x)),...requiredColumns.filter(x=>!columns.some(c=>c.name===x)),...requiredTriggers.filter(x=>!triggers.has(x))];
 if(violations.length)missing.push('foreign_key_integrity');
 const ok=missing.length===0;
-const summary='## Live TEAM D1 execution readiness\\n\\n- Result: '+(ok?'PASS':'BLOCKED')+
- '\\n- Missing schema/integrity checks: '+(missing.length?missing.join(', '):'none')+
- '\\n- Mode: read-only; no tasks, leases, or receipts created\\n- Scope: production schema and referential integrity only; not an atomic-batch or AI execution certification\\n';
+const summary='## Live TEAM D1 execution readiness\n\n- Result: '+(ok?'PASS':'BLOCKED')+
+ '\n- Missing schema/integrity checks: '+(missing.length?missing.join(', '):'none')+
+ '\n- Mode: read-only; no tasks, leases, or receipts created\n- Scope: production schema and referential integrity only; not an atomic-batch or AI execution certification\n';
 fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY||'/dev/stdout',summary);
 if(!ok)process.exitCode=1;
