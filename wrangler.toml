@@ -9,3 +9,6 @@ run_worker_first = ["/api/*", "/__team/*"]
 
 [vars]
 TEAM_API_ORIGIN = "https://team-rho-self.vercel.app"
+
+[ai]
+binding = "AI"
