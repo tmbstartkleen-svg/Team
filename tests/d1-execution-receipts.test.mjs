@@ -36,3 +36,10 @@ test('partial batch responses are rejected as unverifiable',async()=>{
  const db={prepare(sql){return {bind(...args){return {sql,args}}}},batch:async()=>[{results:[{id:'task_1'}]},{results:[]}]};
  await assert.rejects(()=>verifyTaskWithReceipt(db,input),/verification_not_recorded/);
 });
+
+test('final completion must still have explicit owner approval',async()=>{
+ const statements=[];
+ const db={prepare(sql){return {bind(...args){statements.push({sql,args});return {sql,args}}}},batch:async()=>[{results:[{id:'task_1'}]},{results:[{id:'receipt-123456'}]}]};
+ await verifyTaskWithReceipt(db,input);
+ assert.match(statements[0].sql,/state='running' AND owner_approved=1 AND lease_token=\?/);
+});
