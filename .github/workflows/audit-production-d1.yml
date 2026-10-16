@@ -38,4 +38,5 @@ jobs:
           set -eu
           npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'team_%' ORDER BY name" > /tmp/team-tables.json
           npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "PRAGMA table_info('team_tasks')" > /tmp/team-columns.json
-          node scripts/inspect-remote-d1.mjs /tmp/team-tables.json /tmp/team-columns.json
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'team_%' ORDER BY name" > /tmp/team-triggers.json
+          node scripts/inspect-remote-d1.mjs /tmp/team-tables.json /tmp/team-columns.json /tmp/team-triggers.json
