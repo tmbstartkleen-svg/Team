@@ -104,6 +104,29 @@ jobs:
           console.log('TEAM D1 binding and schema verified on deployed Worker');
           NODE
           echo 'TEAM D1 binding and schema verified on live Worker' >> "$GITHUB_STEP_SUMMARY"
+      - name: Report executor schema and launch readiness without implying certification
+        if: steps.credentials.outputs.ready == 'true' && success()
+        run: |
+          set -eu
+          URL='https://atlas-team.tmbstartkleen.workers.dev/api/launch-readiness'
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 "$URL" > /tmp/team-launch-readiness.json
+          node - <<'NODE'
+          const r=require('/tmp/team-launch-readiness.json');
+          if(r.ok!==true||!Array.isArray(r.checks))throw Error('Launch readiness endpoint is unavailable or invalid');
+          const schema=r.checks.find(c=>c.id==='executor-database-schema');
+          if(!schema)throw Error('Missing required executor schema readiness check');
+          const summary=[
+            '## ATLAS TEAM operational release assessment',
+            '| Gate | Status |',
+            '| --- | --- |',
+            ...r.checks.map(c=>'| '+c.id+' | '+(c.ready?'PASS':c.required?'BLOCKED':'OPTIONAL')+' |'),
+            '',
+            '**Beta certified: '+(r.betaReady===true?'YES':'NO')+'**',
+            'A successful deployment is not evidence of autonomous AI execution.'
+          ].join('\n');
+          require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\n');
+          if(r.betaReady!==true)console.log('Deployment reachable; operational beta NOT certified');
+          NODE
       - name: Verify published Cloudflare edge
         if: steps.credentials.outputs.ready == 'true' && success()
         env:
