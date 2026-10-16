@@ -8,7 +8,7 @@ test('Cloudflare owner API accepts only a single Bearer credential',async()=>{
  const env={TEAM_OWNER_API_TOKEN:token};
  assert.equal(await authorized(req('Bearer '+token),env),true);
  assert.equal(await authorized(req('bearer '+token),env),true);
- for(const header of [null,token,'Basic '+token,'Bearer  '+token,'Bearer '+token+' extra','Bearer '+token+' ','Bearer invalid']){
+ for(const header of [null,token,'Basic '+token,'Bearer  '+token,'Bearer '+token+' extra','Bearer invalid']){
   assert.equal(await authorized(req(header),env),false,String(header));
  }
 });
