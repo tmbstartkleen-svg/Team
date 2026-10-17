@@ -34,7 +34,7 @@ test('lease expiration requires the exact task and lease token',async()=>{
 });
 test('blocking a task requires a valid reason and matching lease',async()=>{
  let statement='',params=[];
- const db={prepare(sql){statement=sql;return {bind(...args){params=args;return {first:async()=>null}}}};
+ const db={prepare(sql){statement=sql;return {bind(...args){params=args;return {first:async()=>null};}};}};
  assert.equal(await blockClaimedTask(db,{id:'task-1',leaseToken:'lease-token-123456',reason:'execution-error'}),null);
  assert.match(statement,/WHERE id=\? AND state='running' AND lease_token=\?/);
  assert.deepEqual(params,['execution-error','task-1','lease-token-123456']);
