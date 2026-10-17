@@ -1,0 +1,19 @@
+name: TEAM Test Task Fixture Readiness
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify test task fixture contract
+        run: |
+          node --test tests/approved-persona-pipeline.test.mjs tests/executor-run-api.test.mjs tests/d1-execution-receipts.test.mjs
+          echo '## Test task fixture readiness' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Result: PASS if all test steps passed' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Production database writes: none' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Executor activation: unchanged and disabled' >> "$GITHUB_STEP_SUMMARY"
