@@ -1,0 +1,70 @@
+name: TEAM Controlled Live Task Certification
+on:
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: 'Already owner-approved dedicated certification task ID (cert-...)'
+        required: true
+        type: string
+      confirm:
+        description: 'Type EXECUTE-APPROVED-CERT-TASK to authorize one real Workers AI task'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: team-live-certification
+  cancel-in-progress: false
+jobs:
+  execute-once:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    environment: team-live-certification
+    steps:
+      - name: Owner-approved controlled certification
+        env:
+          TASK_ID: ${{ inputs.task_id }}
+          CONFIRM: ${{ inputs.confirm }}
+          OWNER_TOKEN: ${{ secrets.TEAM_OWNER_API_TOKEN }}
+          EXECUTOR_TOKEN: ${{ secrets.TEAM_EXECUTOR_TOKEN }}
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const base='https://atlas-team.tmbstartkleen.workers.dev';
+          const taskId=process.env.TASK_ID||'';
+          const summary=(result,detail)=>fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## Controlled live task certification\n\n- Result: '+result+'\n- Detail: '+detail+
+            '\n- Production action: at most one explicitly owner-approved analysis-only task\n- No task creation, approval, or recovery actions from this workflow\n');
+          const get=async(path,token)=>{
+            const res=await fetch(base+path,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});
+            const body=await res.json().catch(()=>({}));
+            return {status:res.status,body};
+          };
+          (async()=>{
+            if(process.env.CONFIRM!=='EXECUTE-APPROVED-CERT-TASK')throw Error('explicit_confirmation_required');
+            if(!/^cert-[A-Za-z0-9_-]{8,120}$/.test(taskId))throw Error('invalid_certification_task_id');
+            if((process.env.OWNER_TOKEN||'').length<32||(process.env.EXECUTOR_TOKEN||'').length<32)throw Error('required_service_secrets_missing');
+            const pre=await get('/api/owner-task-preflight?taskId='+encodeURIComponent(taskId),process.env.OWNER_TOKEN);
+            if(pre.status!==200||pre.body.ok!==true||pre.body.taskId!==taskId||pre.body.ownerApproved!==true||pre.body.claimable!==true||pre.body.state!=='queued')throw Error('task_not_owner_approved_and_claimable');
+            const before=await get('/api/task-certification?taskId='+encodeURIComponent(taskId),process.env.OWNER_TOKEN);
+            if(before.status!==200||before.body.ok!==true||before.body.taskId!==taskId||before.body.receiptCount!==0||before.body.taskState!=='queued')throw Error('test_task_not_clean');
+            // The deployed Worker must separately have TEAM_EXECUTOR_ENABLED=true,
+            // TEAM_EXECUTOR_CERTIFICATION_MODE=true, and the exact task ID pinned.
+            // No workflow step changes Worker configuration or elevates release flags.
+            const res=await fetch(base+'/api/internal-executor-run',{
+              method:'POST',
+              headers:{authorization:'Bearer '+process.env.EXECUTOR_TOKEN,'content-type':'application/json'},
+              body:JSON.stringify({taskId}),
+              signal:AbortSignal.timeout(90000)
+            });
+            const outcome=await res.json().catch(()=>({}));
+            if(res.status!==200||outcome.ok!==true||outcome.state!=='verified'||outcome.outputType!=='analysis-only'||outcome.externalActionsPerformed!==false||typeof outcome.receiptId!=='string')throw Error('execution_not_verified_http_'+res.status);
+            const after=await get('/api/task-certification?taskId='+encodeURIComponent(taskId),process.env.OWNER_TOKEN);
+            if(after.status!==200||after.body.ok!==true||after.body.taskId!==taskId||after.body.taskState!=='verified'||after.body.approvalRecorded!==true||after.body.evidenceRecorded!==true||after.body.receiptCount!==1||!after.body.receiptIds?.includes(outcome.receiptId))throw Error('receipt_evidence_mismatch');
+            summary('PASS','Single approved task verified with matching persisted D1 receipt; production release is not certified');
+          })().catch(error=>{
+            summary('BLOCKED',String(error.message).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,110));
+            process.exitCode=1;
+          });
+          NODE
