@@ -8,7 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Verify deployed executor denies unauthenticated execution
+      - name: Verify disabled executor rejects anonymous and authenticated requests
+        env:
+          TEAM_EXECUTOR_TOKEN: ${{ secrets.TEAM_EXECUTOR_TOKEN }}
         run: |
           node <<'NODE'
           const fs=require('node:fs');
@@ -17,7 +19,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
               '## Live executor boundary certification\n\n- Result: '+(ok?'PASS':'BLOCKED')+
               '\n- Detail: '+detail+
-              '\n- No tokens, approved tasks, or production database records used.\n');
+              '\n- No approved tasks or production database records used; service token is sent only in an authenticated denial probe and never logged.\n');
           };
           (async()=>{
             const timeout=AbortSignal.timeout(15000);
@@ -33,6 +35,15 @@ jobs:
             if(request.status!==401)throw Error('anonymous_execution_http_'+request.status);
             const body=await request.json();
             if(body.error!=='unauthorized')throw Error('unexpected_authorization_result');
-            summary(true,'Deployed executor reports disabled and rejects unauthenticated POST with HTTP 401');
+            if(!process.env.TEAM_EXECUTOR_TOKEN||process.env.TEAM_EXECUTOR_TOKEN.length<32)throw Error('executor_service_token_missing');
+            const authenticated=await fetch(base+'/api/internal-executor-run',{
+              method:'POST',signal:timeout,
+              headers:{'content-type':'application/json',authorization:'Bearer '+process.env.TEAM_EXECUTOR_TOKEN},
+              body:JSON.stringify({taskId:'certification-denied-no-task'})
+            });
+            if(authenticated.status!==503)throw Error('authenticated_disabled_http_'+authenticated.status);
+            const denied=await authenticated.json();
+            if(denied.error!=='executor_disabled')throw Error('authenticated_gate_not_disabled');
+            summary(true,'Anonymous request denied (401); authenticated request denied while executor is OFF (503)');
           })().catch(error=>{summary(false,String(error.message).slice(0,96).replace(/[^a-zA-Z0-9_-]/g,'_'));process.exitCode=1});
           NODE
