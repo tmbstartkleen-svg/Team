@@ -14,10 +14,15 @@ jobs:
           node-version: '22'
       - name: Test bounded lease recovery on an isolated SQLite database
         run: |
+          set -eu
           node --test tests/d1-lease-recovery.test.mjs tests/d1-receipt-sqlite-integration.test.mjs
-          echo '## TEAM recovery certification' >> "$GITHUB_STEP_SUMMARY"
-          echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Result: PASS if the test step passed' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Scope: isolated test doubles and in-memory SQLite only' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Production D1 writes: none' >> "$GITHUB_STEP_SUMMARY"
-          echo '- TEAM_RECOVERY_CERTIFIED: not changed by this workflow' >> "$GITHUB_STEP_SUMMARY"
+      - name: Emit certification evidence
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const summary='## TEAM recovery certification\n\n- Result: PASS\n- Evidence ID: '+process.env.GITHUB_RUN_ID+'\n- Commit: '+process.env.GITHUB_SHA+'\n- Scope: isolated lease-recovery and in-memory SQLite transaction tests\n- Production D1 writes: none\n- Production recovery certification: NOT CERTIFIED by this isolated test\n';
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
+          NODE
