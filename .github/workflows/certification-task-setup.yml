@@ -1,0 +1,75 @@
+name: TEAM Certification Task Setup
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose create or approve; each requires its own separate workflow run'
+        required: true
+        type: choice
+        options:
+          - create
+          - approve
+      task_id:
+        description: 'Dedicated test task ID: cert- followed by at least 8 safe characters'
+        required: true
+        type: string
+      confirm:
+        description: 'Type CREATE-UNAPPROVED-TEST-TASK or APPROVE-CERT-ANALYSIS-TASK'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: team-live-certification
+  cancel-in-progress: false
+jobs:
+  owner-setup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: team-live-certification
+    steps:
+      - name: Execute exactly one explicitly authorized setup step
+        env:
+          TASK_ID: ${{ inputs.task_id }}
+          ACTION: ${{ inputs.action }}
+          CONFIRM: ${{ inputs.confirm }}
+          OWNER_TOKEN: ${{ secrets.TEAM_OWNER_API_TOKEN }}
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const base='https://atlas-team.tmbstartkleen.workers.dev';
+          const id=process.env.TASK_ID||'', action=process.env.ACTION||'';
+          const summarize=(status,detail)=>fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## TEAM certification task setup\n\n- Result: '+status+'\n- Step: '+action+
+            '\n- Detail: '+detail+
+            '\n- Execution: NEVER started by this workflow\n- General executor configuration: unchanged\n');
+          async function call(path,method,body){
+            const response=await fetch(base+path,{method,headers:{authorization:'Bearer '+process.env.OWNER_TOKEN,...(body?{'content-type':'application/json'}:{})},
+              body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(15000)});
+            return {status:response.status,value:await response.json().catch(()=>({}))};
+          }
+          (async()=>{
+            if(!/^cert-[A-Za-z0-9_-]{8,120}$/.test(id))throw Error('invalid_certification_task_id');
+            if((process.env.OWNER_TOKEN||'').length<32)throw Error('missing_owner_token');
+            const expected=action==='create'?'CREATE-UNAPPROVED-TEST-TASK':action==='approve'?'APPROVE-CERT-ANALYSIS-TASK':null;
+            if(!expected||process.env.CONFIRM!==expected)throw Error('explicit_confirmation_missing');
+            if(action==='create'){
+              const created=await call('/api/owner-certification-fixture','POST',{taskId:id,confirm:'CREATE-UNAPPROVED-TEST-TASK'});
+              if(created.status!==201||created.value.taskId!==id||created.value.ownerApproved!==false||created.value.state!=='queued')throw Error('fixture_creation_failed_http_'+created.status);
+              const pre=await call('/api/owner-task-preflight?taskId='+encodeURIComponent(id),'GET');
+              if(pre.status!==200||pre.value.ownerApproved!==false||pre.value.claimable!==false||pre.value.state!=='queued')throw Error('created_fixture_preflight_failed');
+              summarize('PASS','Unapproved queued test fixture created; approval requires a separate workflow run');
+            }else{
+              const pre=await call('/api/owner-task-preflight?taskId='+encodeURIComponent(id),'GET');
+              if(pre.status!==200||pre.value.ok!==true||pre.value.taskId!==id||pre.value.state!=='queued'||pre.value.ownerApproved!==false||pre.value.attemptCount!==0||pre.value.assignedPersona!=='release-review')throw Error('preapproval_state_mismatch');
+              const evidence=await call('/api/task-certification?taskId='+encodeURIComponent(id),'GET');
+              if(evidence.status!==200||evidence.value.ok!==true||evidence.value.receiptCount!==0||evidence.value.taskState!=='queued')throw Error('preapproval_receipt_conflict');
+              const approval=await call('/api/owner-approval','POST',{taskId:id,decision:'approved',reason:'Owner explicitly approves the dedicated analysis-only certification test task; no external actions are authorized.'});
+              if(approval.status!==201||approval.value.ok!==true||approval.value.taskId!==id||approval.value.recorded!==true)throw Error('approval_failed_http_'+approval.status);
+              const after=await call('/api/owner-task-preflight?taskId='+encodeURIComponent(id),'GET');
+              if(after.status!==200||after.value.ownerApproved!==true||after.value.claimable!==true||after.value.state!=='queued')throw Error('approval_persistence_not_verified');
+              summarize('PASS','Owner approval audit persisted; executor remains disabled until separately scoped and authorized');
+            }
+          })().catch(e=>{summarize('BLOCKED',String(e.message).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,110));process.exitCode=1});
+          NODE
