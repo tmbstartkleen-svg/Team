@@ -45,3 +45,18 @@ test('Cloudflare service request remains disabled without explicit opt-in',async
  assert.equal(response.status,503);
  assert.equal(called,0);
 });
+
+test('certification mode refuses all non-certification task IDs before schema or provider access',async()=>{
+ let called=0;
+ const response=await handleExecutorRun(req(),{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true'},{execute:async()=>{called++;return {ok:true}}});
+ assert.equal(response.status,403);
+ assert.equal((await response.json()).error,'certification_task_only');
+ assert.equal(called,0);
+});
+test('certification mode permits only dedicated cert-prefixed task IDs to reach the guarded executor',async()=>{
+ let called=0;
+ const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-smoke-test-001'})});
+ const response=await handleExecutorRun(request,{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true'},{execute:async args=>{called++;assert.equal(args.taskId,'cert-smoke-test-001');return {ok:false,state:'not_claimed'}}});
+ assert.equal(response.status,409);
+ assert.equal(called,1);
+});
