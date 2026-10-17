@@ -23,3 +23,16 @@ test('Cloudflare reports no autonomous execution without making an upstream call
  assert.equal(data.executorActive,false);
  assert.equal(result.headers.get('cache-control'),'no-store');
 });
+
+test('native Cloudflare Workers AI binding counts as configured without OpenAI credentials',()=>{
+ const result=assessPersonaExecution({TEAM_INFERENCE_PROVIDER:'cloudflare',AI:{run:async()=>({response:'ok'})}});
+ assert.equal(result.providerConfigured,true);
+ assert.equal(result.inferenceVerified,false);
+ assert.equal(result.executorActive,false);
+ assert.equal(result.taskExecutionAllowed,false);
+});
+test('Cloudflare provider without AI binding is not configured',()=>{
+ const result=assessPersonaExecution({TEAM_INFERENCE_PROVIDER:'cloudflare'});
+ assert.equal(result.providerConfigured,false);
+ assert.equal(result.executorActive,false);
+});
