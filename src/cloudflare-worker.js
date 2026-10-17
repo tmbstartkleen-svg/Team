@@ -6,6 +6,7 @@ import {handleExecutorRun} from '../lib/executor-run-api.mjs';
 import {handleMigrationInventory} from '../lib/migration-inventory-api.mjs';
 import {handleTaskCertification} from '../lib/task-certification-api.mjs';
 import {handleOwnerTaskPreflight} from '../lib/owner-task-claim-api.mjs';
+import {handleOwnerCertificationFixture} from '../lib/owner-certification-fixture-api.mjs';
 import {ownerCollaborationReadiness} from '../lib/owner-collaboration-readiness.mjs';
 import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
 import {inspectTeamDatabase} from '../lib/d1-readiness.mjs';
@@ -30,6 +31,7 @@ export default {
   if(url.pathname==='/api/migration-inventory')return handleMigrationInventory(request,env);
   if(url.pathname==='/api/task-certification')return handleTaskCertification(request,env);
   if(url.pathname==='/api/owner-task-preflight')return handleOwnerTaskPreflight(request,env);
+  if(url.pathname==='/api/owner-certification-fixture')return handleOwnerCertificationFixture(request,env);
   if(url.pathname==='/api/owner-collaboration')return handleOwnerCollaboration(request,env);
   if(url.pathname==='/api/integrations'){
    if(request.method!=='GET')return new Response(JSON.stringify({ok:false,error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json','allow':'GET','cache-control':'no-store'}});
