@@ -1,0 +1,23 @@
+name: TEAM Recovery Certification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Test bounded lease recovery on an isolated SQLite database
+        run: |
+          node --test tests/d1-lease-recovery.test.mjs tests/d1-receipt-sqlite-integration.test.mjs
+          echo '## TEAM recovery certification' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Result: PASS if the test step passed' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Scope: isolated test doubles and in-memory SQLite only' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Production D1 writes: none' >> "$GITHUB_STEP_SUMMARY"
+          echo '- TEAM_RECOVERY_CERTIFIED: not changed by this workflow' >> "$GITHUB_STEP_SUMMARY"
