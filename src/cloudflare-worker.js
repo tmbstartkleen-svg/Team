@@ -3,6 +3,7 @@ import {handleOwnerProjects} from '../lib/owner-projects-api.mjs';
 import {handleOwnerApprovalHistory} from '../lib/owner-approval-history-api.mjs';
 import {handleOwnerApproval} from '../lib/owner-approval-api.mjs';
 import {handleExecutorRun} from '../lib/executor-run-api.mjs';
+import {handleExecutorCertificationPreflight} from '../lib/executor-certification-preflight-api.mjs';
 import {handleMigrationInventory} from '../lib/migration-inventory-api.mjs';
 import {handleTaskCertification} from '../lib/task-certification-api.mjs';
 import {handleOwnerTaskPreflight} from '../lib/owner-task-claim-api.mjs';
@@ -28,6 +29,7 @@ export default {
   if(url.pathname==='/api/owner-approval-history')return handleOwnerApprovalHistory(request,env);
   if(url.pathname==='/api/owner-approval')return handleOwnerApproval(request,env);
   if(url.pathname==='/api/internal-executor-run')return handleExecutorRun(request,env);
+  if(url.pathname==='/api/internal-executor-certification-preflight')return handleExecutorCertificationPreflight(request,env);
   if(url.pathname==='/api/migration-inventory')return handleMigrationInventory(request,env);
   if(url.pathname==='/api/task-certification')return handleTaskCertification(request,env);
   if(url.pathname==='/api/owner-task-preflight')return handleOwnerTaskPreflight(request,env);
