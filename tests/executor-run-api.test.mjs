@@ -19,3 +19,29 @@ test('unapproved task response cannot claim success',async()=>{
  const response=await handleExecutorRun(req(),env,{execute:async()=>({ok:false,state:'not_claimed'})});
  assert.equal(response.status,409);
 });
+
+test('Cloudflare-only executor does not need an OpenAI API key',async()=>{
+ let called=0;
+ const cloudflareEnv={...env,OPENAI_API_KEY:undefined,TEAM_INFERENCE_PROVIDER:'cloudflare',AI:{run:async()=>({response:'Safe analysis.'})}};
+ const response=await handleExecutorRun(req(),cloudflareEnv,{execute:async args=>{
+  called++;
+  assert.equal(args.provider,'cloudflare');
+  assert.equal(args.ai,cloudflareEnv.AI);
+  assert.equal(args.apiKey,undefined);
+  return {ok:true,state:'verified',outputType:'analysis-only'};
+ }});
+ assert.equal(response.status,200);
+ assert.equal(called,1);
+});
+test('Cloudflare executor refuses to run without the native AI binding',async()=>{
+ let called=0;
+ const response=await handleExecutorRun(req(),{...env,TEAM_INFERENCE_PROVIDER:'cloudflare',AI:undefined,OPENAI_API_KEY:undefined},{execute:async()=>{called++;return {ok:true}}});
+ assert.equal(response.status,503);
+ assert.equal(called,0);
+});
+test('Cloudflare service request remains disabled without explicit opt-in',async()=>{
+ let called=0;
+ const response=await handleExecutorRun(req(),{...env,TEAM_INFERENCE_PROVIDER:'cloudflare',AI:{run:async()=>({response:'text'})},TEAM_EXECUTOR_ENABLED:undefined},{execute:async()=>{called++;return {ok:true}}});
+ assert.equal(response.status,503);
+ assert.equal(called,0);
+});
