@@ -20,3 +20,16 @@ test('even configured schema and owner token are not proof of agent execution',a
  assert.equal(state.productionOperational,false);
  assert.equal(state.checks.find(x=>x.id==='approved-agent-execution').ready,false);
 });
+
+test('Cloudflare Workers AI is reported configured without OpenAI while execution remains uncertified',async()=>{
+ const state=await assessLaunchReadiness({TEAM_INFERENCE_PROVIDER:'cloudflare',AI:{run:async()=>({response:'ok'})}});
+ assert.equal(state.checks.find(x=>x.id==='inference-provider-configured').ready,true);
+ assert.equal(state.checks.find(x=>x.id==='live-inference-certified').ready,false);
+ assert.equal(state.betaReady,false);
+ assert.equal(state.agentsActive,false);
+});
+test('Cloudflare provider selected without AI binding is not reported configured',async()=>{
+ const state=await assessLaunchReadiness({TEAM_INFERENCE_PROVIDER:'cloudflare'});
+ assert.equal(state.checks.find(x=>x.id==='inference-provider-configured').ready,false);
+ assert.equal(state.betaReady,false);
+});
