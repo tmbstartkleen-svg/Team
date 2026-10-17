@@ -116,8 +116,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -eu
-          if [ -z "$TEAM_EXECUTOR_TOKEN" ] || [ -z "$OPENAI_API_KEY" ]; then
-            echo 'Executor credential provisioning incomplete; execution remains disabled' >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$TEAM_EXECUTOR_TOKEN" ]; then
+            echo 'Executor service token missing; execution remains disabled' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           if [ "${#TEAM_EXECUTOR_TOKEN}" -lt 32 ]; then
@@ -125,7 +125,9 @@ jobs:
             exit 1
           fi
           printf '%s' "$TEAM_EXECUTOR_TOKEN" | npx --yes wrangler@4 secret put TEAM_EXECUTOR_TOKEN >/dev/null
+          if [ -n "$OPENAI_API_KEY" ]; then
           printf '%s' "$OPENAI_API_KEY" | npx --yes wrangler@4 secret put OPENAI_API_KEY >/dev/null
+          fi
           echo 'Executor service credentials installed; TEAM_EXECUTOR_ENABLED remains opt-in and defaults off' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify deployed D1 binding when configured
         if: steps.credentials.outputs.ready == 'true' && success()
