@@ -15,7 +15,7 @@ jobs:
       - name: Test bounded lease recovery on an isolated SQLite database
         run: |
           set -eu
-          node --test tests/d1-lease-recovery.test.mjs tests/d1-receipt-sqlite-integration.test.mjs
+          node --test tests/d1-lease-recovery.test.mjs tests/d1-lease-recovery-sqlite-integration.test.mjs tests/d1-receipt-sqlite-integration.test.mjs
       - name: Emit certification evidence
         env:
           GITHUB_RUN_ID: ${{ github.run_id }}
