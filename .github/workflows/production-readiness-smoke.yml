@@ -1,0 +1,34 @@
+name: TEAM Production Readiness Smoke
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify production endpoints without writes
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const base='https://atlas-team.tmbstartkleen.workers.dev';
+          const results=[];
+          async function check(name,path,validate,expected=200){
+            const response=await fetch(base+path,{signal:AbortSignal.timeout(12000)});
+            let body={};try{body=await response.json()}catch{}
+            const ok=response.status===expected&&validate(body,response.status);
+            results.push({name,ok,status:response.status});
+          }
+          (async()=>{
+            await check('health','/api/health',(b)=>b.ok===true&&b.productionOperational===false);
+            await check('database-readiness','/api/database-readiness',(b)=>b.ok===true&&b.agentsActive===false&&b.database?.bindingConfigured===true&&b.database?.schemaVerified===true);
+            await check('launch-readiness','/api/launch-readiness',(b)=>b.ok===true&&b.productionOperational===false&&b.agentsActive===false&&Array.isArray(b.checks));
+            await check('persona-execution-readiness','/api/persona-execution-readiness',(b)=>b.ok===true&&b.executorActive===false&&b.taskExecutionAllowed===false);
+            await check('anonymous-executor-denial','/api/internal-executor-run',(b)=>b.error==='unauthorized',401);
+          })().catch(()=>{results.push({name:'request-execution',ok:false,status:0})}).finally(()=>{
+            const lines=results.map(x=>'- '+x.name+': '+(x.ok?'PASS':'BLOCKED')+' (HTTP '+x.status+')').join('\\n');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## TEAM production read-only smoke\\n\\n'+lines+'\\n\\nNo authentication token, AI task, or database write was used.\\n');
+            if(results.some(x=>!x.ok))process.exitCode=1;
+          });
+          NODE
