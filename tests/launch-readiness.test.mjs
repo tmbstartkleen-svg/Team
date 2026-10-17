@@ -33,3 +33,15 @@ test('Cloudflare provider selected without AI binding is not reported configured
  assert.equal(state.checks.find(x=>x.id==='inference-provider-configured').ready,false);
  assert.equal(state.betaReady,false);
 });
+
+test('recovery certification is a required explicit release gate',async()=>{
+ const names=['team_projects','team_tasks','team_messages','team_memory_consent','team_memory_items','team_message_delivery','team_approval_audit','team_execution_receipts'];
+ const TEAM_DB={prepare(){return {all:async()=>({results:names.map(name=>({name}))})}}};
+ const base={TEAM_DB,TEAM_OWNER_API_TOKEN:'a'.repeat(32),TEAM_INFERENCE_PROVIDER:'cloudflare',AI:{run:async()=>({response:'ok'})}};
+ const blocked=await assessLaunchReadiness(base);
+ assert.equal(blocked.checks.find(x=>x.id==='persistent-task-recovery').ready,false);
+ assert.equal(blocked.betaReady,false);
+ const certified=await assessLaunchReadiness({...base,TEAM_RECOVERY_CERTIFIED:'true'});
+ assert.equal(certified.checks.find(x=>x.id==='persistent-task-recovery').ready,true);
+ assert.equal(certified.betaReady,false);
+});
