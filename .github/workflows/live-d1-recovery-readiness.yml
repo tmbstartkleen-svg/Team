@@ -1,0 +1,50 @@
+name: TEAM Live D1 Recovery Readiness
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify production D1 recovery schema and record state without writes
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DB_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+        run: |
+          set -eu
+          test -n "$CF_TOKEN" && test -n "$CF_ACCOUNT" && test -n "$DB_ID" || { echo '::error::Missing production D1 credentials'; exit 1; }
+          case "$DB_ID" in *[!0-9a-fA-F-]*|'') echo '::error::Invalid database ID'; exit 1;; esac
+          query() {
+            local name="$1" sql="$2"
+            curl --fail --silent --show-error --max-time 15               -H "Authorization: Bearer $CF_TOKEN"               -H "Content-Type: application/json"               "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/d1/database/$DB_ID/query"               --data "$(node -e 'process.stdout.write(JSON.stringify({sql:process.argv[1]}))' "$sql")" > "/tmp/$name.json"
+          }
+          query tables "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('team_tasks','team_execution_receipts') ORDER BY name"
+          query columns "PRAGMA table_info('team_tasks')"
+          query receipt_columns "PRAGMA table_info('team_execution_receipts')"
+          query triggers "SELECT name FROM sqlite_master WHERE type='trigger' AND name IN ('team_execution_receipts_no_update','team_execution_receipts_no_delete') ORDER BY name"
+          query integrity "PRAGMA foreign_key_check"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const get=name=>{const j=JSON.parse(fs.readFileSync('/tmp/'+name+'.json','utf8'));if(j.success!==true||!Array.isArray(j.result)||j.result[0]?.success===false)throw Error('query_failed_'+name);return j.result.flatMap(x=>x.results||[]);};
+          const tables=new Set(get('tables').map(x=>x.name));
+          const taskCols=new Set(get('columns').map(x=>x.name));
+          const receiptCols=new Set(get('receipt_columns').map(x=>x.name));
+          const triggers=new Set(get('triggers').map(x=>x.name));
+          const violations=get('integrity');
+          const missing=[
+            ...['team_tasks','team_execution_receipts'].filter(x=>!tables.has(x)),
+            ...['id','state','owner_approved','lease_token','lease_until','attempt_count'].filter(x=>!taskCols.has(x)),
+            ...['id','task_id','attempt_count','outcome','evidence','created_at'].filter(x=>!receiptCols.has(x)),
+            ...['team_execution_receipts_no_update','team_execution_receipts_no_delete'].filter(x=>!triggers.has(x)),
+            ...(violations.length?['foreign_key_integrity']:[])
+          ];
+          const ok=missing.length===0;
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## Live D1 recovery readiness\n\n- Result: '+(ok?'PASS':'BLOCKED')+
+            '\n- Missing checks: '+(missing.length?missing.join(', '):'none')+
+            '\n- Production data mutations: none\n- Recovery certification: schema/integrity only; actual recovery behavior remains uncertified\n');
+          if(!ok)process.exitCode=1;
+          NODE
