@@ -49,8 +49,13 @@ jobs:
             if(pre.status!==200||pre.body.ok!==true||pre.body.taskId!==taskId||pre.body.ownerApproved!==true||pre.body.claimable!==true||pre.body.state!=='queued')throw Error('task_not_owner_approved_and_claimable');
             const before=await get('/api/task-certification?taskId='+encodeURIComponent(taskId),process.env.OWNER_TOKEN);
             if(before.status!==200||before.body.ok!==true||before.body.taskId!==taskId||before.body.receiptCount!==0||before.body.taskState!=='queued')throw Error('test_task_not_clean');
-            // The deployed Worker must separately have TEAM_EXECUTOR_ENABLED=true,
-            // TEAM_EXECUTOR_CERTIFICATION_MODE=true, and the exact task ID pinned.
+            // Independently verify exact-task, provider, schema, and disabled general release
+            // before issuing the single execution request.
+            const scoped=await get('/api/internal-executor-certification-preflight?taskId='+encodeURIComponent(taskId),process.env.EXECUTOR_TOKEN);
+            if(scoped.status!==200||scoped.body.ok!==true||scoped.body.ready!==true||
+               scoped.body.checks?.generalReleaseOff!==true||scoped.body.checks?.exactTaskPinned!==true||
+               scoped.body.checks?.cloudflareProvider!==true||scoped.body.checks?.taskApproved!==true)
+              throw Error('certification_executor_preflight_not_ready_http_'+scoped.status);
             // No workflow step changes Worker configuration or elevates release flags.
             const res=await fetch(base+'/api/internal-executor-run',{
               method:'POST',
