@@ -1,10 +1,14 @@
 name: TEAM Live D1 Recovery Readiness
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ['Deploy TEAM to Cloudflare']
+    types: [completed]
 permissions:
   contents: read
 jobs:
   inspect:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
