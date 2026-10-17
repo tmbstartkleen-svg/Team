@@ -1,0 +1,38 @@
+name: TEAM Live Executor Boundary Certification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify deployed executor denies unauthenticated execution
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const base='https://atlas-team.tmbstartkleen.workers.dev';
+          const summary=(ok,detail)=>{
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              '## Live executor boundary certification\n\n- Result: '+(ok?'PASS':'BLOCKED')+
+              '\n- Detail: '+detail+
+              '\n- No tokens, approved tasks, or production database records used.\n');
+          };
+          (async()=>{
+            const timeout=AbortSignal.timeout(15000);
+            const ready=await fetch(base+'/api/persona-execution-readiness',{signal:timeout});
+            if(!ready.ok)throw Error('readiness_http_'+ready.status);
+            const state=await ready.json();
+            if(state.executorActive!==false||state.taskExecutionAllowed!==false)throw Error('executor_not_off');
+            const request=await fetch(base+'/api/internal-executor-run',{
+              method:'POST',signal:timeout,
+              headers:{'content-type':'application/json'},
+              body:JSON.stringify({taskId:'certification-denied-no-task'})
+            });
+            if(request.status!==401)throw Error('anonymous_execution_http_'+request.status);
+            const body=await request.json();
+            if(body.error!=='unauthorized')throw Error('unexpected_authorization_result');
+            summary(true,'Deployed executor reports disabled and rejects unauthenticated POST with HTTP 401');
+          })().catch(error=>{summary(false,String(error.message).slice(0,96).replace(/[^a-zA-Z0-9_-]/g,'_'));process.exitCode=1});
+          NODE
