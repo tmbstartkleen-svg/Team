@@ -24,7 +24,7 @@ jobs:
             await check('health','/api/health',(b)=>b.ok===true&&b.productionOperational===false);
             await check('database-readiness','/api/database-readiness',(b)=>b.ok===true&&b.agentsActive===false&&b.database?.bindingConfigured===true&&b.database?.schemaVerified===true);
             await check('launch-readiness','/api/launch-readiness',(b)=>b.ok===true&&b.productionOperational===false&&b.agentsActive===false&&Array.isArray(b.checks));
-            await check('persona-execution-readiness','/api/persona-execution-readiness',(b)=>b.ok===true&&b.executorActive===false&&b.taskExecutionAllowed===false);
+            await check('persona-execution-readiness','/api/persona-execution-readiness',(b)=>b.ok===true&&b.providerConfigured===true&&b.executorActive===false&&b.taskExecutionAllowed===false);
             await check('anonymous-executor-denial','/api/internal-executor-run',(b)=>b.error==='unauthorized',401);
           })().catch(()=>{results.push({name:'request-execution',ok:false,status:0})}).finally(()=>{
             const lines=results.map(x=>'- '+x.name+': '+(x.ok?'PASS':'BLOCKED')+' (HTTP '+x.status+')').join('\\n');
