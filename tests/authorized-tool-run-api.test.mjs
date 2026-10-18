@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {handleAuthorizedToolRun} from '../lib/authorized-tool-run-api.mjs';
+const token='x'.repeat(40);
+const url='https://team.example/execute';
+const req=(body,auth=true)=>new Request(url,{method:'POST',headers:{'content-type':'application/json',...(auth?{authorization:'Bearer '+token}:{})},body:JSON.stringify(body)});
+const env={TEAM_EXECUTOR_TOKEN:token,TEAM_TOOL_EXECUTOR_ENABLED:'true',TEAM_TOOL_EXECUTOR_RELEASED:'true',TEAM_DB:{prepare(){}}};
+const body={taskId:'task-12345',stepId:'step-12345'};
+test('unauthenticated request cannot load grants or execute',async()=>{let called=false;const r=await handleAuthorizedToolRun(req(body,false),env,{loadGrant:async()=>{called=true}});assert.equal(r.status,401);assert.equal(called,false)});
+test('feature gate defaults closed',async()=>{const r=await handleAuthorizedToolRun(req(body),{...env,TEAM_TOOL_EXECUTOR_RELEASED:'false'},{loadGrant:async()=>({})});assert.equal(r.status,503)});
+test('step lookup cannot impersonate approvals',async()=>{const r=await handleAuthorizedToolRun(req({...body,approval:{taskApproved:true}}),env,{loadGrant:async()=>null});assert.equal(r.status,403)});
+test('server-owned grants are forwarded to durable executor',async()=>{let called=false;const grant={ownerApproved:true,step:{tool:'team.read'},approval:{taskApproved:true}};const r=await handleAuthorizedToolRun(req(body),env,{loadGrant:async()=>grant,execute:async x=>{called=true;assert.equal(x.step,grant.step);return {ok:true,status:'verified'}}});assert.equal(r.status,200);assert.equal(called,true)});
