@@ -80,3 +80,23 @@ test('certification mode refuses execution without exact configured task ID',asy
  const response=await handleExecutorRun(request,{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:undefined},{execute:async()=>{called++;return {ok:true}}});
  assert.equal(response.status,403);assert.equal(called,0);
 });
+
+test('conflicting certification and general-release flags always fail closed',async()=>{
+ let called=0;
+ const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-smoke-test-001'})});
+ const response=await handleExecutorRun(request,{
+  ...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:'true',TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'
+ },{execute:async()=>{called++;return {ok:true,state:'verified'}}});
+ assert.equal(response.status,503);
+ assert.equal((await response.json()).error,'conflicting_release_modes');
+ assert.equal(called,0);
+});
+test('certification mode with general release off remains scoped to the exact task',async()=>{
+ let called=0;
+ const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-smoke-test-001'})});
+ const response=await handleExecutorRun(request,{
+  ...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'
+ },{execute:async()=>{called++;return {ok:false,state:'not_claimed'}}});
+ assert.equal(response.status,409);
+ assert.equal(called,1);
+});
