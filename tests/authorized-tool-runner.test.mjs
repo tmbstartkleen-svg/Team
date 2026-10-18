@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {executeAuthorizedToolStep} from '../lib/authorized-tool-runner.mjs';
+const step={persona:'QA-Engineer',tool:'github.read',capability:'read'};
+const approval={taskApproved:true,allowedTools:['github.read'],grantedCapabilities:['read']};
+test('denied work never calls an adapter',async()=>{let called=false;const r=await executeAuthorizedToolStep({step,approval:{...approval,taskApproved:false},adapters:{'github.read':async()=>{called=true;}}});assert.equal(r.status,'denied');assert.equal(called,false)});
+test('missing adapter remains blocked',async()=>{const r=await executeAuthorizedToolStep({step,approval});assert.equal(r.status,'blocked');assert.equal(r.executed,false)});
+test('confirmed adapter receipt permits verified result',async()=>{const r=await executeAuthorizedToolStep({step,approval,adapters:{'github.read':async()=>({confirmed:true,receiptId:'receipt-12345',evidence:'Read-only repository content verified'})}});assert.equal(r.status,'verified');assert.equal(r.ok,true)});
+test('unverified adapter response cannot claim success',async()=>{const r=await executeAuthorizedToolStep({step,approval,adapters:{'github.read':async()=>({confirmed:true})}});assert.equal(r.status,'needs-verification');assert.equal(r.ok,false)});
+test('adapter error signals reconciliation without leaking details',async()=>{const r=await executeAuthorizedToolStep({step,approval,adapters:{'github.read':async()=>{throw Error('secret-value')}}});assert.equal(r.status,'needs-reconciliation');assert.ok(!JSON.stringify(r).includes('secret-value'))});
+test('side-effect action requires explicit grant and idempotency key',async()=>{let called=false;const r=await executeAuthorizedToolStep({step:{...step,capability:'send'},approval,adapters:{'github.read':async()=>{called=true;}}});assert.equal(r.status,'denied');assert.equal(called,false)});
