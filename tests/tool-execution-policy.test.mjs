@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {authorizeToolStep} from '../lib/tool-execution-policy.mjs';
+const base={taskApproved:true,persona:'QA-Engineer',tool:'github.read',capability:'read',allowedTools:['github.read'],grantedCapabilities:['read']};
+test('approved read-only step succeeds with exact tool grant',()=>assert.equal(authorizeToolStep(base).allowed,true));
+test('unapproved task cannot call tools',()=>assert.equal(authorizeToolStep({...base,taskApproved:false}).reason,'task_approval_required'));
+test('a persona cannot use unlisted tools',()=>assert.equal(authorizeToolStep({...base,tool:'github.write'}).reason,'tool_not_allowlisted'));
+test('a read grant never permits write',()=>assert.equal(authorizeToolStep({...base,capability:'write'}).reason,'capability_not_granted'));
+test('side effects require explicit confirmation',()=>assert.equal(authorizeToolStep({...base,capability:'send',grantedCapabilities:['send']}).reason,'explicit_confirmation_required'));
+test('side effects also require idempotency keys',()=>assert.equal(authorizeToolStep({...base,capability:'send',grantedCapabilities:['send'],confirmation:true}).reason,'idempotency_key_required'));
+test('confirmed and idempotent write is eligible for execution',()=>assert.equal(authorizeToolStep({...base,capability:'write',grantedCapabilities:['write'],confirmation:true,idempotencyKey:'task-123-step-1'}).allowed,true));
+test('unknown capability fails closed',()=>assert.throws(()=>authorizeToolStep({...base,capability:'shell-root'}),/invalid_tool_step/));
