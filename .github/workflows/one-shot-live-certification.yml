@@ -1,0 +1,70 @@
+name: TEAM One-Shot Live AI Certification
+on:
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: 'Approved analysis-only certification task ID'
+        required: true
+        type: string
+      confirm:
+        description: 'Type AUTHORIZE-ONE-SCOPED-AI-EXECUTION'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: atlas-team-cloudflare-production
+  cancel-in-progress: false
+jobs:
+  certify-and-restore:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    environment: team-live-certification
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TEAM_D1_DATABASE_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+      OWNER_TOKEN: ${{ secrets.TEAM_OWNER_API_TOKEN }}
+      EXECUTOR_TOKEN: ${{ secrets.TEAM_EXECUTOR_TOKEN }}
+      TASK_ID: ${{ inputs.task_id }}
+      CONFIRM: ${{ inputs.confirm }}
+      TEAM_EXECUTOR_MODEL: ${{ vars.TEAM_EXECUTOR_MODEL }}
+      TEAM_ALLOWED_MODELS: ${{ vars.TEAM_ALLOWED_MODELS }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Preflight owner approval and credentials without production writes
+        run: node scripts/one-shot-certification.mjs preflight
+      - name: Verify source and stage Cloudflare assets
+        run: |
+          npm install --no-audit --no-fund
+          npm run check
+          mkdir -p public
+          cp index.html public/index.html
+      - name: Prepare identical disabled and scoped Worker configs
+        run: node scripts/one-shot-certification.mjs prepare
+      - name: Activate ONLY the approved test task for at most fifteen minutes
+        id: activation
+        run: |
+          npx --yes wrangler@4 deploy --config wrangler.certification.toml
+          echo 'attempted=true' >> "$GITHUB_OUTPUT"
+      - name: Independently verify scoped settings, run AI once, and check persisted receipt
+        run: node scripts/one-shot-certification.mjs execute
+      - name: Restore disabled Worker configuration even on failures
+        if: always() && steps.activation.outcome != 'skipped'
+        id: restore
+        run: npx --yes wrangler@4 deploy --config wrangler.disabled.toml
+      - name: Verify the executor is disabled again
+        if: always() && steps.activation.outcome != 'skipped'
+        run: node scripts/one-shot-certification.mjs verify-disabled
+      - name: Explain certification evidence and rollback
+        if: always()
+        run: |
+          echo '## One-shot live AI certification' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Scope: one previously owner-approved certification task' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Production general release: never enabled by this workflow' >> "$GITHUB_STEP_SUMMARY"
+          echo '- The activation has a hard application-enforced 15-minute maximum window.' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Review preceding steps: execution and rollback must BOTH succeed for certification.' >> "$GITHUB_STEP_SUMMARY"
