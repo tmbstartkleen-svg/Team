@@ -68,3 +68,9 @@ test('receipt rejection never returns success for Cloudflare task',async()=>{
  assert.equal(result.failureStage,'receipt');
  assert.ok(db.calls.some(x=>x.sql.includes("blocker_reason=?")));
 });
+
+test('unknown inference provider fails before claiming or contacting any model',async()=>{
+ const db=database();let called=false;
+ await assert.rejects(()=>executeApprovedPersonaTask({...args,db,provider:'unapproved-provider',fetcher:async()=>{called=true;throw Error('unexpected')}}),/invalid_inference_provider/);
+ assert.equal(db.calls.length,0);assert.equal(called,false);
+});
