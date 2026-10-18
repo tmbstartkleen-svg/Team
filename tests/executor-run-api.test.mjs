@@ -48,7 +48,7 @@ test('Cloudflare service request remains disabled without explicit opt-in',async
 
 test('certification mode refuses all non-certification task IDs before schema or provider access',async()=>{
  let called=0;
- const response=await handleExecutorRun(req(),{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'},{execute:async()=>{called++;return {ok:true}}});
+ const response=await handleExecutorRun(req(),{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_CERTIFICATION_EXPIRES_AT:new Date(Date.now()+5*60*1000).toISOString(),TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'},{execute:async()=>{called++;return {ok:true}}});
  assert.equal(response.status,403);
  assert.equal((await response.json()).error,'certification_task_only');
  assert.equal(called,0);
@@ -56,7 +56,7 @@ test('certification mode refuses all non-certification task IDs before schema or
 test('certification mode permits only dedicated cert-prefixed task IDs to reach the guarded executor',async()=>{
  let called=0;
  const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-smoke-test-001'})});
- const response=await handleExecutorRun(request,{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'},{execute:async args=>{called++;assert.equal(args.taskId,'cert-smoke-test-001');return {ok:false,state:'not_claimed'}}});
+ const response=await handleExecutorRun(request,{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_CERTIFICATION_EXPIRES_AT:new Date(Date.now()+5*60*1000).toISOString(),TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'},{execute:async args=>{called++;assert.equal(args.taskId,'cert-smoke-test-001');return {ok:false,state:'not_claimed'}}});
  assert.equal(response.status,409);
  assert.equal(called,1);
 });
@@ -71,13 +71,13 @@ test('executor enablement alone cannot open the general release gate',async()=>{
 test('certification mode rejects valid cert-prefixed task IDs that are not explicitly scoped',async()=>{
  let called=0;
  const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-another-task-001'})});
- const response=await handleExecutorRun(request,{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'},{execute:async()=>{called++;return {ok:true}}});
+ const response=await handleExecutorRun(request,{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_CERTIFICATION_EXPIRES_AT:new Date(Date.now()+5*60*1000).toISOString(),TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'},{execute:async()=>{called++;return {ok:true}}});
  assert.equal(response.status,403);assert.equal(called,0);
 });
 test('certification mode refuses execution without exact configured task ID',async()=>{
  let called=0;
  const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-smoke-test-001'})});
- const response=await handleExecutorRun(request,{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:undefined},{execute:async()=>{called++;return {ok:true}}});
+ const response=await handleExecutorRun(request,{...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_CERTIFICATION_EXPIRES_AT:new Date(Date.now()+5*60*1000).toISOString(),TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:undefined},{execute:async()=>{called++;return {ok:true}}});
  assert.equal(response.status,403);assert.equal(called,0);
 });
 
@@ -85,7 +85,7 @@ test('conflicting certification and general-release flags always fail closed',as
  let called=0;
  const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-smoke-test-001'})});
  const response=await handleExecutorRun(request,{
-  ...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:'true',TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'
+  ...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_CERTIFICATION_EXPIRES_AT:new Date(Date.now()+5*60*1000).toISOString(),TEAM_EXECUTOR_GENERAL_RELEASED:'true',TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'
  },{execute:async()=>{called++;return {ok:true,state:'verified'}}});
  assert.equal(response.status,503);
  assert.equal((await response.json()).error,'conflicting_release_modes');
@@ -95,8 +95,20 @@ test('certification mode with general release off remains scoped to the exact ta
  let called=0;
  const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-smoke-test-001'})});
  const response=await handleExecutorRun(request,{
-  ...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'
+  ...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_CERTIFICATION_EXPIRES_AT:new Date(Date.now()+5*60*1000).toISOString(),TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'
  },{execute:async()=>{called++;return {ok:false,state:'not_claimed'}}});
  assert.equal(response.status,409);
  assert.equal(called,1);
+});
+
+test('certification cannot execute without a short-lived activation window',async()=>{
+ let calls=0;
+ const request=new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-smoke-test-001'})});
+ const base={...env,TEAM_EXECUTOR_CERTIFICATION_MODE:'true',TEAM_EXECUTOR_GENERAL_RELEASED:undefined,TEAM_EXECUTOR_CERTIFICATION_TASK_ID:'cert-smoke-test-001'};
+ for(const expiry of [undefined,new Date(Date.now()-1000).toISOString(),new Date(Date.now()+60*60*1000).toISOString(),'nonsense']){
+  const response=await handleExecutorRun(request.clone(),{...base,TEAM_EXECUTOR_CERTIFICATION_EXPIRES_AT:expiry},{execute:async()=>{calls++;return {ok:true}}});
+  assert.equal(response.status,503);
+  assert.equal((await response.json()).error,'certification_window_closed');
+ }
+ assert.equal(calls,0);
 });

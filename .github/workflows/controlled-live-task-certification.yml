@@ -53,7 +53,7 @@ jobs:
             // before issuing the single execution request.
             const scoped=await get('/api/internal-executor-certification-preflight?taskId='+encodeURIComponent(taskId),process.env.EXECUTOR_TOKEN);
             if(scoped.status!==200||scoped.body.ok!==true||scoped.body.ready!==true||
-               scoped.body.checks?.generalReleaseOff!==true||scoped.body.checks?.exactTaskPinned!==true||
+               scoped.body.checks?.generalReleaseOff!==true||scoped.body.checks?.withinCertificationWindow!==true||scoped.body.checks?.exactTaskPinned!==true||
                scoped.body.checks?.cloudflareProvider!==true||scoped.body.checks?.taskApproved!==true)
               throw Error('certification_executor_preflight_not_ready_http_'+scoped.status);
             // No workflow step changes Worker configuration or elevates release flags.
