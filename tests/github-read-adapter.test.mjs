@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createGitHubReadAdapter} from '../lib/github-read-adapter.mjs';
+const token='test-secret-value';
+const step={tool:'github.read',capability:'read',target:{owner:'sample-org',repo:'example',resource:'repository'}};
+const make=(fetcher)=>createGitHubReadAdapter({fetcher,token,allowedRepositories:['sample-org/example']});
+test('read-only repository GET verifies provider identity',async()=>{let call;const adapter=make(async(url,options)=>{call={url,options};return new Response(JSON.stringify({id:1001,full_name:'sample-org/example'}),{status:200})});const r=await adapter({step});assert.equal(r.confirmed,true);assert.equal(call.options.method,'GET');assert.equal(call.options.redirect,'error');assert.equal(call.url,'https://api.github.com/repos/sample-org/example');assert.ok(!r.evidence.includes(token))});
+test('unlisted repository is rejected before fetching',async()=>{let called=false;const adapter=make(async()=>{called=true});await assert.rejects(()=>adapter({step:{...step,target:{...step.target,repo:'other'}}}),/not_allowed/);assert.equal(called,false)});
+test('write capability is forbidden',async()=>{const adapter=make(async()=>{throw Error('must not call')});await assert.rejects(()=>adapter({step:{...step,capability:'write'}}),/not_allowed/)});
+test('provider response must match requested repository',async()=>{const adapter=make(async()=>new Response(JSON.stringify({id:1001,full_name:'wrong/repo'})));await assert.rejects(()=>adapter({step}),/unverified_identity/)});
+test('provider errors do not expose token',async()=>{const adapter=make(async()=>new Response('no',{status:403}));await assert.rejects(()=>adapter({step}),/github_read_failed/)});
