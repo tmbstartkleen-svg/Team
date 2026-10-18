@@ -1,0 +1,32 @@
+name: TEAM Tool Execution D1 Schema Gate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Inspect production schema read-only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEAM_D1_DATABASE_ID: ${{ secrets.TEAM_D1_DATABASE_ID }}
+        run: |
+          set -eu
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" && test -n "$TEAM_D1_DATABASE_ID"
+          npx --yes wrangler@4 d1 execute atlas-team-data --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('team_tool_action_ledger','team_tool_step_grants') ORDER BY name" > /tmp/team-tool-schema.json
+          node <<'NODE'
+          const fs=require('node:fs');
+          const response=JSON.parse(fs.readFileSync('/tmp/team-tool-schema.json','utf8'));
+          const names=new Set(response.flatMap(x=>x.results||[]).map(x=>x.name));
+          const required=['team_tool_action_ledger','team_tool_step_grants'];
+          const lines=required.map(n=>'- '+n+': '+(names.has(n)?'PRESENT':'MISSING')).join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## Production D1 tool schema (read-only)\n\n'+lines+'\n\nNo migrations or writes were run.\n');
+          if(required.some(n=>!names.has(n)))process.exitCode=1;
+          NODE
