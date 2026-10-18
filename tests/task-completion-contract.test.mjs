@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {evaluateTaskCompletion} from '../lib/task-completion-contract.mjs';
+const proof=(proofType)=>({id:'step-1',proofType,evidence:'Verified receipt from authorized execution',verified:true});
+test('AI analysis cannot prove an external-world action',()=>assert.equal(evaluateTaskCompletion({resultType:'external-action',ownerApproved:true,steps:[proof('analysis-reviewed')]}).complete,false));
+test('approved external action with confirmed evidence can complete',()=>assert.equal(evaluateTaskCompletion({resultType:'external-action',ownerApproved:true,steps:[proof('action-confirmed')]}).status,'verified'));
+test('unapproved task cannot be considered completed',()=>assert.equal(evaluateTaskCompletion({resultType:'artifact',steps:[proof('artifact-validated')]}).status,'awaiting-approval'));
+test('all steps require evidence and unique identifiers',()=>{const s=proof('artifact-validated');assert.equal(evaluateTaskCompletion({resultType:'artifact',ownerApproved:true,steps:[s,{...s}]}).complete,false);assert.equal(evaluateTaskCompletion({resultType:'artifact',ownerApproved:true,steps:[{...s,verified:false}]}).complete,false)});
+test('blockers prevent premature completion',()=>assert.equal(evaluateTaskCompletion({resultType:'analysis',ownerApproved:true,steps:[proof('analysis-reviewed')],blocker:'Missing source access'}).status,'blocked'));
+test('zero steps cannot imply success',()=>assert.equal(evaluateTaskCompletion({resultType:'analysis',ownerApproved:true}).complete,false));
