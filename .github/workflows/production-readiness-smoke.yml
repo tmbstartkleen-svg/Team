@@ -29,6 +29,7 @@ jobs:
             await check('database-readiness','/api/database-readiness',(b)=>b.ok===true&&b.agentsActive===false&&b.database?.bindingConfigured===true&&b.database?.schemaVerified===true&&b.database?.toolSchemaVerified===true);
             await check('launch-readiness','/api/launch-readiness',(b)=>b.ok===true&&b.productionOperational===false&&b.agentsActive===false&&Array.isArray(b.checks));
             await check('persona-execution-readiness','/api/persona-execution-readiness',(b)=>b.ok===true&&b.providerConfigured===true&&b.executorActive===false&&b.taskExecutionAllowed===false);
+            await check('github-tool-readiness','/api/github-tool-readiness',(b)=>b.ok===true&&typeof b.credentialsConfigured==='boolean'&&typeof b.allowlistConfigured==='boolean'&&typeof b.readyForControlledTest==='boolean'&&b.executionReleased===false);
             await check('anonymous-tool-read-denial','/api/internal-tool-read',(b)=>b.error==='unauthorized',401);
             await check('anonymous-executor-denial','/api/internal-executor-run',(b)=>b.error==='unauthorized',401);
           })().catch(()=>{results.push({name:'request-execution',ok:false,status:0})}).finally(()=>{
