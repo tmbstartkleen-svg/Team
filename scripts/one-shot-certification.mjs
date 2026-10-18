@@ -71,15 +71,32 @@ async function execute(){
  assert(scoped.status===200&&scoped.body.ready===true&&scoped.body.checks?.withinCertificationWindow===true&&scoped.body.checks?.exactTaskPinned===true&&scoped.body.checks?.generalReleaseOff===true&&scoped.body.checks?.taskApproved===true&&scoped.body.checks?.cloudflareProvider===true,'certification_preflight_failed_http_'+scoped.status);
  const res=await fetch(base+'/api/internal-executor-run',{method:'POST',headers:{authorization:'Bearer '+executor,'content-type':'application/json'},body:JSON.stringify({taskId:id}),signal:AbortSignal.timeout(90000)});
  const outcome=await res.json().catch(()=>({}));
- assert(res.status===200&&outcome.ok===true&&outcome.state==='verified'&&outcome.outputType==='analysis-only'&&outcome.externalActionsPerformed===false&&typeof outcome.receiptId==='string','execution_not_verified_http_'+res.status);
+ if(res.status!==200||outcome.ok!==true){
+  const stage=['provider','receipt'].includes(outcome.failureStage)?outcome.failureStage:'unknown';
+  const reason=['provider_or_receipt_failure','executor_failed'].includes(outcome.reason)?outcome.reason:'unclassified';
+  const observed=await get('/api/task-certification?taskId='+encodeURIComponent(id),owner).catch(()=>({status:0,body:{}}));
+  throw Error('execution_not_verified_http_'+res.status+'_stage_'+stage+'_reason_'+reason+'_task_'+(observed.body.taskState||'unavailable'));
+ }
+ assert(outcome.state==='verified'&&outcome.outputType==='analysis-only'&&outcome.externalActionsPerformed===false&&typeof outcome.receiptId==='string','execution_success_payload_invalid');
  const verified=await get('/api/task-certification?taskId='+encodeURIComponent(id),owner);
  assert(verified.status===200&&verified.body.taskState==='verified'&&verified.body.evidenceRecorded===true&&verified.body.approvalRecorded===true&&verified.body.receiptCount===1&&verified.body.receiptIds?.includes(outcome.receiptId),'persisted_receipt_mismatch');
  console.log('PASS: single live Workers AI task and matching immutable D1 receipt');
 }
 async function verifyDisabled(){
- const result=await call('/api/internal-executor-run',executor,'POST',{taskId:id});
- assert(result.status===503&&result.body.error==='executor_disabled','executor_not_disabled_after_rollback');
- console.log('PASS: production executor disabled after certification');
+ // Cloudflare edge rollout may lag the successful Wrangler deploy.
+ // Verify the service gate repeatedly without any task mutation; success
+ // requires an explicit executor_disabled response, never a generic 503.
+ const observed=[];
+ for(let attempt=0;attempt<8;attempt++){
+  const result=await call('/api/internal-executor-run',executor,'POST',{taskId:id});
+  if(result.status===503&&result.body.error==='executor_disabled'){
+   console.log('PASS: production executor disabled after certification');
+   return;
+  }
+  observed.push(result.status+':'+String(result.body.error||'unknown').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,40));
+  if(attempt<7)await new Promise(resolve=>setTimeout(resolve,2500));
+ }
+ throw Error('executor_not_disabled_after_rollback_observed_'+observed.join('_').slice(0,85));
 }
 const operation=process.argv[2];
 try{
