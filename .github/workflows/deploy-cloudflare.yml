@@ -7,7 +7,7 @@ on:
     - cron: '15 14 * * *'
 concurrency:
   group: atlas-team-cloudflare-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   verify-and-deploy:
     runs-on: ubuntu-latest
