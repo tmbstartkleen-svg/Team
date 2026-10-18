@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createGitHubCommentAdapter} from '../lib/github-comment-adapter.mjs';
+const step={tool:'github.issue-comment',capability:'send',idempotencyKey:'task-123-step-123',target:{owner:'test-org',repo:'sample',issueNumber:42,body:'Approved project update.'}};
+const adapter=fetcher=>createGitHubCommentAdapter({fetcher,token:'secret-token-value',allowedRepositories:['test-org/sample']});
+test('approved fixed-scope comment returns provider receipt',async()=>{let call;const a=adapter(async(url,options)=>{call={url,options};return new Response(JSON.stringify({id:1234,html_url:'https://github.com/test-org/sample/issues/42#issuecomment-1234'}),{status:201})});const r=await a({step});assert.equal(r.confirmed,true);assert.equal(call.options.method,'POST');assert.ok(call.url.endsWith('/issues/42/comments'));assert.ok(!JSON.stringify(r).includes('secret-token-value'))});
+test('unlisted repository never reaches API',async()=>{let called=false;const a=adapter(async()=>{called=true});await assert.rejects(()=>a({step:{...step,target:{...step.target,repo:'elsewhere'}}}));assert.equal(called,false)});
+test('read or invalid body cannot write',async()=>{const a=adapter(async()=>{throw Error('called')});await assert.rejects(()=>a({step:{...step,capability:'read'}}));await assert.rejects(()=>a({step:{...step,target:{...step.target,body:'x'}}}))});
+test('unverified provider response cannot claim success',async()=>{const a=adapter(async()=>new Response(JSON.stringify({id:1234,html_url:'https://evil.example/comment'}),{status:201}));await assert.rejects(()=>a({step}),/unverified_receipt/)});
