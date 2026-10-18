@@ -3,6 +3,8 @@ import {handleOwnerProjects} from '../lib/owner-projects-api.mjs';
 import {handleOwnerApprovalHistory} from '../lib/owner-approval-history-api.mjs';
 import {handleOwnerApproval} from '../lib/owner-approval-api.mjs';
 import {handleExecutorRun} from '../lib/executor-run-api.mjs';
+import {handleAuthorizedToolRun} from '../lib/authorized-tool-run-api.mjs';
+import {createGitHubReadAdapter} from '../lib/github-read-adapter.mjs';
 import {handleExecutorCertificationPreflight} from '../lib/executor-certification-preflight-api.mjs';
 import {handleCertificationLeaseRecovery} from '../lib/certification-lease-recovery-api.mjs';
 import {handleMigrationInventory} from '../lib/migration-inventory-api.mjs';
@@ -30,6 +32,16 @@ export default {
   if(url.pathname==='/api/owner-approval-history')return handleOwnerApprovalHistory(request,env);
   if(url.pathname==='/api/owner-approval')return handleOwnerApproval(request,env);
   if(url.pathname==='/api/internal-executor-run')return handleExecutorRun(request,env);
+  if(url.pathname==='/api/internal-tool-read'){
+   // Service-authenticated endpoint; production flags default closed.
+   // No write adapter is registered. Credentials are never returned to callers.
+   let adapters={};
+   const allow=String(env.TEAM_GITHUB_READ_REPOSITORIES||'').split(',').map(x=>x.trim()).filter(Boolean);
+   if(typeof env.TEAM_GITHUB_READ_TOKEN==='string'&&allow.length&&env.TEAM_TOOL_EXECUTOR_ENABLED==='true'&&env.TEAM_TOOL_EXECUTOR_RELEASED==='true'){
+    try{adapters={'github.read':createGitHubReadAdapter({fetcher:fetch,token:env.TEAM_GITHUB_READ_TOKEN,allowedRepositories:allow})}}catch{}
+   }
+   return handleAuthorizedToolRun(request,env,{adapters});
+  }
   if(url.pathname==='/api/internal-executor-certification-preflight')return handleExecutorCertificationPreflight(request,env);
   if(url.pathname==='/api/internal-certification-lease-recovery')return handleCertificationLeaseRecovery(request,env);
   if(url.pathname==='/api/migration-inventory')return handleMigrationInventory(request,env);
