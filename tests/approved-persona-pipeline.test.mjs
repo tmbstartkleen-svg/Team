@@ -56,6 +56,7 @@ test('Cloudflare model failure blocks claimed task without recording receipt',as
  assert.equal(calls,1);
  assert.equal(result.ok,false);
  assert.equal(result.state,'blocked');
+ assert.equal(result.failureStage,'provider');
  assert.ok(db.calls.some(x=>x.sql.includes("blocker_reason=?")));
  assert.ok(!db.calls.some(x=>x.sql.includes('team_execution_receipts')));
 });
@@ -64,5 +65,6 @@ test('receipt rejection never returns success for Cloudflare task',async()=>{
  const result=await executeApprovedPersonaTask({...args,db,provider:'cloudflare',ai:{run:async()=>({response:'Analysis completed for owner review.'})}});
  assert.equal(result.ok,false);
  assert.equal(result.state,'blocked');
+ assert.equal(result.failureStage,'receipt');
  assert.ok(db.calls.some(x=>x.sql.includes("blocker_reason=?")));
 });
