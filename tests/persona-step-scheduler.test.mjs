@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {selectReadyPersonaSteps} from '../lib/persona-step-scheduler.mjs';
+const a={id:'research',persona:'Researcher',state:'queued',dependsOn:[],ownerApproved:true};
+const b={id:'develop',persona:'Engineer',state:'queued',dependsOn:['research'],ownerApproved:true};
+test('ready step runs before dependent work',()=>{const x=selectReadyPersonaSteps([a,b]);assert.deepEqual(x.ready.map(s=>s.id),['research']);assert.equal(x.waiting.length,1)});
+test('verified dependency unlocks next step',()=>assert.deepEqual(selectReadyPersonaSteps([{...a,state:'verified'},b]).ready.map(x=>x.id),['develop']));
+test('blocked dependency escalates downstream',()=>assert.equal(selectReadyPersonaSteps([{...a,state:'blocked'},b]).blocked[0].id,'develop'));
+test('missing approval blocks dispatch',()=>assert.equal(selectReadyPersonaSteps([{...a,ownerApproved:false}]).ready.length,0));
+test('cyclic dependencies rejected',()=>assert.throws(()=>selectReadyPersonaSteps([{...a,dependsOn:['develop']},b]),/cyclic/));
+test('parallelism bounded without losing candidates',()=>{const x=selectReadyPersonaSteps([a,{...a,id:'research2'},{...a,id:'research3'}],{maxParallel:1});assert.equal(x.ready.length,1);assert.equal(x.deferred.length,2)});
+test('only entirely verified non-empty plans report completion',()=>{assert.equal(selectReadyPersonaSteps([]).allVerified,false);assert.equal(selectReadyPersonaSteps([{...a,state:'verified'}]).allVerified,true)});
