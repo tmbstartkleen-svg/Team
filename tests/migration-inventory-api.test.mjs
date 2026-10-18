@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {handleMigrationInventory} from '../lib/migration-inventory-api.mjs';
 const secret='s'.repeat(40),url='https://team.example/api/migration-inventory';
-const names=['team_projects','team_tasks','team_messages','team_memory_consent','team_memory_items','team_message_delivery','team_approval_audit','team_execution_receipts'];
+const names=['team_projects','team_tasks','team_messages','team_memory_consent','team_memory_items','team_message_delivery','team_approval_audit','team_execution_receipts','team_tool_action_ledger','team_tool_step_grants'];
 const cols=['state','owner_approved','lease_token','lease_until','attempt_count','completion_evidence','blocker_reason','blocker_updated_at'];
 function db(tables=names,columns=cols){return {prepare(sql){return {all:async()=>({results:(sql.startsWith('PRAGMA')?columns:tables).map(name=>({name}))})}}}}
 const request=(auth=true)=>new Request(url,{headers:auth?{authorization:'Bearer '+secret}:{}});
@@ -8,3 +8,5 @@ test('anonymous callers cannot inspect migration inventory',async()=>assert.equa
 test('unavailable database fails closed',async()=>assert.equal((await handleMigrationInventory(request(),{TEAM_OWNER_API_TOKEN:secret})).status,503));
 test('complete object inventory never claims actual migration history',async()=>{const r=await handleMigrationInventory(request(),{TEAM_OWNER_API_TOKEN:secret,TEAM_DB:db()});const j=await r.json();assert.equal(j.allRequiredObjectsPresent,true);assert.equal(j.migrationHistoryVerified,false);assert.equal(j.executorEnabled,false)});
 test('missing execution receipt and blocker columns reported explicitly',async()=>{const r=await handleMigrationInventory(request(),{TEAM_OWNER_API_TOKEN:secret,TEAM_DB:db(names.filter(n=>n!=='team_execution_receipts'),cols.filter(c=>c!=='blocker_reason'))});const j=await r.json();assert.equal(j.allRequiredObjectsPresent,false);assert.ok(j.missingTables.includes('team_execution_receipts'));assert.ok(j.missingTaskColumns.includes('blocker_reason'))});
+
+test('missing action ledger and grant table are explicit blockers',async()=>{const r=await handleMigrationInventory(request(),{TEAM_OWNER_API_TOKEN:secret,TEAM_DB:db(names.filter(n=>n!=='team_tool_action_ledger'&&n!=='team_tool_step_grants'))});const j=await r.json();assert.equal(j.allRequiredObjectsPresent,false);assert.ok(j.missingTables.includes('team_tool_action_ledger'));assert.ok(j.missingTables.includes('team_tool_step_grants'))});
