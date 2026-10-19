@@ -1,4 +1,5 @@
 export {CertificationLedger} from '../lib/certification-durable-ledger.mjs';
+import {inspectCertificationLedger} from '../lib/certification-ledger-inspection-api.mjs';
 import {handleOneShotGitHubCertification} from '../lib/one-shot-github-certification.mjs';
 import {handleOwnerGitHubGrant} from '../lib/owner-github-grant-api.mjs';
 import {githubToolReadiness} from '../lib/github-tool-readiness.mjs';
@@ -32,6 +33,7 @@ export default {
   if(url.pathname==='/api/github-tool-readiness'&&request.method==='GET')return new Response(JSON.stringify({ok:true,...githubToolReadiness(env)}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/database-readiness'&&request.method==='GET'){const data=await inspectTeamDatabase(env.TEAM_DB);return new Response(JSON.stringify({ok:true,hosting:'cloudflare',database:data,agentsActive:false}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}})}
   if(url.pathname==='/api/owner-collaboration-readiness'&&request.method==='GET')return new Response(JSON.stringify({ok:true,...ownerCollaborationReadiness(env)}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+  if(url.pathname==='/api/internal-github-certification-ledger')return inspectCertificationLedger(request,env);
   if(url.pathname==='/api/owner-workspace')return handleOwnerWorkspace(request,env);
   if(url.pathname==='/api/owner-projects')return handleOwnerProjects(request,env);
   if(url.pathname==='/api/owner-approval-history')return handleOwnerApprovalHistory(request,env);
