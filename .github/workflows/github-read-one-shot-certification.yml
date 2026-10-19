@@ -30,7 +30,7 @@ jobs:
             const body=JSON.stringify({taskId:'cert-github-read-20261018',stepId:'cert-github-repository-read'});
             const post=async()=>{const r=await fetch(base+'/api/internal-github-certification',{method:'POST',headers,body,signal:AbortSignal.timeout(20000)});return {status:r.status,data:await r.json()}};
             const first=await post();
-            if(first.status!==200||first.data?.ok!==true||first.data?.durable!==true||first.data?.executed!==true)throw Error('first_tool_execution_unverified_'+first.status+'_'+(first.data?.error||first.data?.status||'unknown')+'_'+(first.data?.stage||'none')+'_'+(first.data?.category||'unclassified'));
+            if(first.status!==200||first.data?.ok!==true||first.data?.durable!==true||first.data?.executed!==true)throw Error('first_tool_execution_unverified_'+first.status+'_'+(first.data?.error||first.data?.status||'unknown')+'_'+(first.data?.stage||'none')+'_'+(first.data?.category||'unclassified')+'_'+(first.data?.reason||'no_reason')+'_'+(first.data?.executed===true?'attempted':'not_attempted'));
             const second=await post();
             if(second.status!==409||second.data?.ok!==false||second.data?.executed!==false)throw Error('replay_not_rejected');
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'GitHub read confirmed; durable receipt recorded; duplicate execution rejected. General executor release remains disabled.\n');
