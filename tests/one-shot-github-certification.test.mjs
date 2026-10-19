@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {handleOneShotGitHubCertification} from '../lib/one-shot-github-certification.mjs';
+const url='https://atlas-team.example/api/internal-github-certification';
+test('anonymous request denied',async()=>{const r=await handleOneShotGitHubCertification(new Request(url,{method:'POST'}),{});assert.equal(r.status,401)});
+test('authenticated request defaults closed',async()=>{const token='x'.repeat(40);const r=await handleOneShotGitHubCertification(new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({taskId:'cert-github-read-20261018',stepId:'cert-github-repository-read'})}),{TEAM_EXECUTOR_TOKEN:token});assert.equal(r.status,503)});
+test('unrelated requests rejected before database access',async()=>{const token='x'.repeat(40);const r=await handleOneShotGitHubCertification(new Request(url,{method:'POST',headers:{authorization:'Bearer '+token},body:JSON.stringify({taskId:'other-task',stepId:'other-step'})}),{TEAM_EXECUTOR_TOKEN:token,TEAM_GITHUB_CERTIFICATION_TASK_ID:'cert-github-read-20261018'});assert.equal(r.status,403)});
