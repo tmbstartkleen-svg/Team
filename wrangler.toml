@@ -11,6 +11,7 @@ run_worker_first = ["/api/*", "/__team/*"]
 TEAM_API_ORIGIN = "https://team-rho-self.vercel.app"
 TEAM_INFERENCE_PROVIDER = "cloudflare"
 TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"
+TEAM_GITHUB_CERTIFICATION_TASK_ID = "cert-github-read-20261018"
 
 [ai]
 binding = "AI"
