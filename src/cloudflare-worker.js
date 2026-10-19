@@ -1,3 +1,4 @@
+import {handleOwnerGitHubGrant} from '../lib/owner-github-grant-api.mjs';
 import {githubToolReadiness} from '../lib/github-tool-readiness.mjs';
 import {handleOwnerWorkspace} from '../lib/owner-workspace-api.mjs';
 import {handleOwnerProjects} from '../lib/owner-projects-api.mjs';
@@ -32,6 +33,7 @@ export default {
   if(url.pathname==='/api/owner-workspace')return handleOwnerWorkspace(request,env);
   if(url.pathname==='/api/owner-projects')return handleOwnerProjects(request,env);
   if(url.pathname==='/api/owner-approval-history')return handleOwnerApprovalHistory(request,env);
+  if(url.pathname==='/api/owner-github-grant')return handleOwnerGitHubGrant(request,env);
   if(url.pathname==='/api/owner-approval')return handleOwnerApproval(request,env);
   if(url.pathname==='/api/internal-executor-run')return handleExecutorRun(request,env);
   if(url.pathname==='/api/internal-tool-read'){
