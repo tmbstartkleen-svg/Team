@@ -1,0 +1,29 @@
+name: TEAM GitHub Reader Preflight (No Execution)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.ref == 'refs/heads/main'
+    environment: team-live-certification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Diagnose GitHub reader without ledger mutation
+        env:
+          EXECUTOR_TOKEN: ${{ secrets.TEAM_EXECUTOR_TOKEN }}
+        run: |
+          node <<'NODE'
+          (async()=>{
+            if(!process.env.EXECUTOR_TOKEN||process.env.EXECUTOR_TOKEN.length<32)throw Error('service_credential_missing');
+            const r=await fetch('https://atlas-team.tmbstartkleen.workers.dev/api/internal-github-read-preflight',{method:'GET',headers:{authorization:'Bearer '+process.env.EXECUTOR_TOKEN},redirect:'error',signal:AbortSignal.timeout(16000)});
+            const data=await r.json();
+            const allowed=new Set(['verified_repository_read','reader_token_missing','github_unauthorized','github_forbidden_or_limited','github_not_found','github_rate_limited','github_http_error','github_response_too_large','github_invalid_json','github_identity_mismatch','github_timeout','github_network_failure']);
+            if(!allowed.has(data.category))throw Error('untrusted_preflight_response_'+r.status);
+            console.log('github_reader_preflight_category='+data.category);
+            if(data.upstreamStatus)console.log('github_reader_upstream_http='+Number(data.upstreamStatus));
+            if(r.status!==200||data.ok!==true||data.readOnly!==true||data.ledgerMutated!==false)throw Error('github_reader_preflight_not_verified');
+            require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'GitHub repository reader verified without executing tasks or writing to the execution ledger.\n');
+          })().catch(e=>{console.error(String(e.message).replace(/[^a-zA-Z0-9_-]/g,'_'));process.exitCode=1});
+          NODE
