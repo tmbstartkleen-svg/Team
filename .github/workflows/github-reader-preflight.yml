@@ -19,7 +19,7 @@ jobs:
             if(!process.env.EXECUTOR_TOKEN||process.env.EXECUTOR_TOKEN.length<32)throw Error('service_credential_missing');
             const r=await fetch('https://atlas-team.tmbstartkleen.workers.dev/api/internal-github-read-preflight',{method:'GET',headers:{authorization:'Bearer '+process.env.EXECUTOR_TOKEN},redirect:'error',signal:AbortSignal.timeout(16000)});
             const data=await r.json();
-            const allowed=new Set(['verified_repository_read','reader_token_missing','github_unauthorized','github_forbidden_or_limited','github_not_found','github_rate_limited','github_http_error','github_response_too_large','github_invalid_json','github_identity_mismatch','github_timeout','github_network_failure','github_redirect_rejected','github_tls_failure','github_dns_failure','github_connection_refused','github_transport_failure']);
+            const allowed=new Set(['verified_repository_read','reader_token_missing','github_unauthorized','github_forbidden_or_limited','github_not_found','github_rate_limited','github_http_error','github_response_too_large','github_invalid_json','github_identity_mismatch','github_timeout','github_network_failure','github_redirect_rejected','github_http_redirect','github_tls_failure','github_dns_failure','github_connection_refused','github_transport_failure']);
             if(!allowed.has(data.category))throw Error('untrusted_preflight_response_'+r.status);
             console.log('github_reader_preflight_category='+data.category);
             if(data.upstreamStatus)console.log('github_reader_upstream_http='+Number(data.upstreamStatus));
