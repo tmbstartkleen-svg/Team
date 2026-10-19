@@ -10,3 +10,6 @@ test('side effects require explicit confirmation',()=>assert.equal(authorizeTool
 test('side effects also require idempotency keys',()=>assert.equal(authorizeToolStep({...base,capability:'send',grantedCapabilities:['send'],confirmation:true}).reason,'idempotency_key_required'));
 test('confirmed and idempotent write is eligible for execution',()=>assert.equal(authorizeToolStep({...base,capability:'write',grantedCapabilities:['write'],confirmation:true,idempotencyKey:'task-123-step-1'}).allowed,true));
 test('unknown capability fails closed',()=>assert.throws(()=>authorizeToolStep({...base,capability:'shell-root'}),/invalid_tool_step/));
+
+test('hyphenated release-review persona is valid for approved GitHub read',()=>assert.equal(authorizeToolStep({...base,persona:'release-review'}).allowed,true));
+test('spaces and slash remain invalid persona identifiers',()=>{assert.throws(()=>authorizeToolStep({...base,persona:'release review'}),/invalid_tool_step/);assert.throws(()=>authorizeToolStep({...base,persona:'release/review'}),/invalid_tool_step/)});
