@@ -15,3 +15,11 @@ TEAM_GITHUB_CERTIFICATION_TASK_ID = "cert-github-read-20261018"
 
 [ai]
 binding = "AI"
+
+[[durable_objects.bindings]]
+name = "TEAM_CERT_LEDGER"
+class_name = "CertificationLedger"
+
+[[migrations]]
+tag = "cert-ledger-sqlite-v1"
+new_sqlite_classes = ["CertificationLedger"]
