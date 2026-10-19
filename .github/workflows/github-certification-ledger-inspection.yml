@@ -1,0 +1,32 @@
+name: TEAM Read-Only Certification Ledger Inspection
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: team-live-certification
+    steps:
+      - name: Inspect existing durable record without executing tools
+        env:
+          EXECUTOR_TOKEN: ${{ secrets.TEAM_EXECUTOR_TOKEN }}
+        run: |
+          node <<'NODE'
+          (async()=>{
+            if(!process.env.EXECUTOR_TOKEN||process.env.EXECUTOR_TOKEN.length<32)throw Error('service_credential_missing');
+            const url='https://atlas-team.tmbstartkleen.workers.dev/api/internal-github-certification-ledger';
+            const r=await fetch(url,{method:'GET',headers:{authorization:'Bearer '+process.env.EXECUTOR_TOKEN},redirect:'error',signal:AbortSignal.timeout(15000)});
+            const data=await r.json();
+            if(r.status!==200||data.ok!==true||data.readOnly!==true||data.executed!==false)throw Error('ledger_inspection_unverified_'+r.status+'_'+String(data.error||'unknown').replace(/[^a-zA-Z0-9_-]/g,'_'));
+            const allowed=['reserved','confirmed','needs-reconciliation','missing','invalid'];
+            if(!allowed.includes(data.state)||typeof data.found!=='boolean'||typeof data.receiptPresent!=='boolean')throw Error('ledger_inspection_invalid_response');
+            console.log('read_only_ledger_state='+data.state);
+            console.log('read_only_ledger_receipt_present='+data.receiptPresent);
+            console.log('read_only_ledger_record_found='+data.found);
+            const fs=require('node:fs');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## Owner-authorized read-only ledger inspection\nState: '+data.state+'\nReceipt present: '+data.receiptPresent+'\nRecord found: '+data.found+'\nNo external tool execution or ledger mutation.\n');
+          })().catch(e=>{console.error(String(e.message).replace(/[^a-zA-Z0-9_-]/g,'_'));process.exitCode=1});
+          NODE
