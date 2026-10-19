@@ -1,3 +1,4 @@
+import {handleOneShotGitHubCertification} from '../lib/one-shot-github-certification.mjs';
 import {handleOwnerGitHubGrant} from '../lib/owner-github-grant-api.mjs';
 import {githubToolReadiness} from '../lib/github-tool-readiness.mjs';
 import {handleOwnerWorkspace} from '../lib/owner-workspace-api.mjs';
@@ -36,6 +37,7 @@ export default {
   if(url.pathname==='/api/owner-github-grant')return handleOwnerGitHubGrant(request,env);
   if(url.pathname==='/api/owner-approval')return handleOwnerApproval(request,env);
   if(url.pathname==='/api/internal-executor-run')return handleExecutorRun(request,env);
+  if(url.pathname==='/api/internal-github-certification')return handleOneShotGitHubCertification(request,env);
   if(url.pathname==='/api/internal-tool-read'){
    // Service-authenticated endpoint; production flags default closed.
    // No write adapter is registered. Credentials are never returned to callers.
