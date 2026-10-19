@@ -1,3 +1,4 @@
+export {CertificationLedger} from '../lib/certification-durable-ledger.mjs';
 import {handleOneShotGitHubCertification} from '../lib/one-shot-github-certification.mjs';
 import {handleOwnerGitHubGrant} from '../lib/owner-github-grant-api.mjs';
 import {githubToolReadiness} from '../lib/github-tool-readiness.mjs';
