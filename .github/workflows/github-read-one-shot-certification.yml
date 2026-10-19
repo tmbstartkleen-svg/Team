@@ -11,7 +11,7 @@ permissions:
 jobs:
   certify-read:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     environment: team-live-certification
     steps:
@@ -23,7 +23,7 @@ jobs:
           node <<'NODE'
           const fs=require('node:fs');
           (async()=>{
-            if(process.env.CONFIRM!=='RUN-OWNER-APPROVED-GITHUB-READ')throw Error('explicit_confirmation_required');
+            if(process.env.CONFIRM?.trim()!=='RUN-OWNER-APPROVED-GITHUB-READ')throw Error('explicit_confirmation_required');
             if(!process.env.EXECUTOR_TOKEN||process.env.EXECUTOR_TOKEN.length<32)throw Error('service_credential_missing');
             const base='https://atlas-team.tmbstartkleen.workers.dev';
             const headers={authorization:'Bearer '+process.env.EXECUTOR_TOKEN,'content-type':'application/json'};
