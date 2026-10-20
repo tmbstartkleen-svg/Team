@@ -1,6 +1,8 @@
 # ATLAS TEAM — Production Release Gate (Build 75)
 
-**Certification status: BLOCKED until real production evidence exists.**
+> **Historical snapshot — not the current release status.** This document records the Build 75 criteria and blockers at the time it was written. For the current release blocker, evidence, and required owner approvals, use [Issue #91](https://github.com/tmbstartkleen-svg/Team/issues/91). A green CI run, deployment, or read-only smoke does not establish live agent certification.
+
+**Certification status at Build 75: BLOCKED until real production evidence exists.**
 
 A passing GitHub test suite proves repository checks, not that agents are working or a cloud service has launched.
 
@@ -18,8 +20,8 @@ A passing GitHub test suite proves repository checks, not that agents are workin
 
 A persona may propose a name; final adoption and replica creation remain subject to owner approval. Gmail is lower priority than Microsoft 365 and remains opt-in.
 
-## Current known blockers
+## Historical blockers recorded at Build 75
 
-Cloudflare GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are missing according to recent workflow results. No TEAM D1 binding or verified live database connection exists. No live agent runtime or authenticated shared chat is available. Microsoft 365 and Gmail have no verified runtime connections.
+At that checkpoint, the release record reported missing Cloudflare deployment credentials, no verified TEAM D1 connection, no live agent runtime, and no verified Microsoft 365 or Gmail connections. **Do not treat these as current infrastructure findings.** Check new evidence in Issue #91 and the relevant production certification run before making a present-tense claim.
 
 **Do not declare Build 75 a product launch.** Owner approval is required after all checks pass.
