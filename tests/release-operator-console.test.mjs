@@ -37,3 +37,10 @@ test('task inspection reads owner-gated APIs without write endpoints',()=>{
  assert.ok(!html.includes("fetch('/api/owner-approval'"));
  assert.ok(!html.includes("fetch('/api/internal-executor-run'"));
 });
+
+test('reliability panel distinguishes config checks from actual receipts',()=>{
+ const html=renderReleaseOperatorConsole();
+ for(const field of ['reliability-list','database-binding','database-schema','executor-database-schema','persistent-task-recovery','durable-recovery','monitoring','rollback'])assert.ok(html.includes(field));
+ assert.ok(html.includes('Recovery drills, monitoring alarms, and rollback evidence require independent certification.'));
+ assert.ok(html.includes("byId('reliability-list').replaceChildren();"));
+});
