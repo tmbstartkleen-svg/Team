@@ -51,3 +51,11 @@ test('executive owner signoff view cannot issue approvals and fails closed',()=>
  assert.ok(!html.includes("fetch('/api/owner-approval'"));
  assert.ok(!html.includes("fetch('/api/internal-executor-run'"));
 });
+
+test('console rejects malformed readiness data and execution-started preflight',()=>{
+ const html=renderReleaseOperatorConsole();
+ assert.ok(html.includes('!Array.isArray(data.requiredGatesOpen)'));
+ assert.ok(html.includes('!Number.isInteger(data.remainingMilestones)'));
+ assert.ok(html.includes('task.executionStarted!==false'));
+ assert.ok(html.includes('Evidence unavailable. Release blocked.'));
+});
