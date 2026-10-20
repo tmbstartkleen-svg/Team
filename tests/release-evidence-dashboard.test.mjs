@@ -38,3 +38,18 @@ test('invalid source snapshots fail closed',()=>{
  assert.throws(()=>summarizeReleaseEvidence({launch:{ok:false,checks:[]}}),/invalid_launch_snapshot/);
  assert.throws(()=>summarizeReleaseEvidence({launch:{...blocked,checks:[{id:'BAD VALUE',required:true,ready:true}]}}),/invalid_gate_id/);
 });
+
+test('every release requirement is assigned to a visible milestone',()=>{
+ const x=summarizeReleaseEvidence({launch:blocked});
+ const keys=new Set(x.certificationMilestones.flatMap(m=>m.missingEvidence));
+ assert.deepEqual([...keys].sort(),[...RELEASE_EVIDENCE_REQUIREMENTS].sort());
+});
+test('missing CI, main merge or deployed worker keeps reliability milestone open',()=>{
+ const evidence=Object.fromEntries(RELEASE_EVIDENCE_REQUIREMENTS.map(k=>[k,{verified:true,reference:'immutable-proof-id'}]));
+ for(const key of ['ci','merged-main','deployed-worker']){
+  const e={...evidence,[key]:{verified:false,reference:''}};
+  const x=summarizeReleaseEvidence({launch:blocked,releaseEvidence:e});
+  assert.equal(x.certificationMilestones.find(m=>m.id==='production-reliability').certified,false);
+  assert.ok(x.releaseEvidence.missing.includes(key));
+ }
+});
