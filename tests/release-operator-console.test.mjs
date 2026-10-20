@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {handleReleaseOperatorConsole,renderReleaseOperatorConsole} from '../lib/release-operator-console.mjs';
+test('console exposes owner-oriented read-only information without write controls',async()=>{
+ const html=renderReleaseOperatorConsole();
+ assert.match(html,/Release Command Center/);
+ assert.match(html,/fetch\('\/api\/release-evidence-dashboard'/);
+ assert.match(html,/cert-github-read-20261019-v2/);
+ assert.doesNotMatch(html,/fetch\('\/api\/owner-approval'/);
+ assert.doesNotMatch(html,/innerHTML\s*=/);
+ const r=handleReleaseOperatorConsole(new Request('https://test.local/release-console'));
+ assert.equal(r.status,200);assert.match(r.headers.get('content-security-policy'),/connect-src 'self'/);
+});
+test('console denies mutating HTTP methods',()=>{
+ const r=handleReleaseOperatorConsole(new Request('https://test.local/release-console',{method:'POST'}));
+ assert.equal(r.status,405);
+});
