@@ -15,3 +15,14 @@ test('console denies mutating HTTP methods',()=>{
  const r=handleReleaseOperatorConsole(new Request('https://test.local/release-console',{method:'POST'}));
  assert.equal(r.status,405);
 });
+
+test('owner project lookup is optional, authenticated and cleared from input',()=>{
+ const html=renderReleaseOperatorConsole();
+ assert.match(html,/fetch\('\/api\/owner-workspace'/);
+ assert.match(html,/authorization:'Bearer '\+token/);
+ assert.match(html,/input\.value=''/);
+ assert.match(html,/credentials:'omit'/);
+ assert.match(html,/data\.agentExecutionActive!==false/);
+ assert.doesNotMatch(html,/localStorage/);
+ assert.doesNotMatch(html,/sessionStorage/);
+});
