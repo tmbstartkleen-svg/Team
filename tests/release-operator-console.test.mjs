@@ -44,3 +44,10 @@ test('reliability panel distinguishes config checks from actual receipts',()=>{
  assert.ok(html.includes('Recovery drills, monitoring alarms, and rollback evidence require independent certification.'));
  assert.ok(html.includes("byId('reliability-list').replaceChildren();"));
 });
+
+test('executive owner signoff view cannot issue approvals and fails closed',()=>{
+ const html=renderReleaseOperatorConsole();
+ for(const marker of ['Executive release decision','evidence-list','remainingMilestones===0','requiredGatesOpen.length===0','Final owner confirmation still required','Evidence unavailable. Release blocked.'])assert.ok(html.includes(marker));
+ assert.ok(!html.includes("fetch('/api/owner-approval'"));
+ assert.ok(!html.includes("fetch('/api/internal-executor-run'"));
+});
