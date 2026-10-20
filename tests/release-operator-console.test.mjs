@@ -26,3 +26,14 @@ test('owner project lookup is optional, authenticated and cleared from input',()
  assert.doesNotMatch(html,/localStorage/);
  assert.doesNotMatch(html,/sessionStorage/);
 });
+
+test('task inspection reads existing owner-gated preflight and audit without write endpoints',()=>{
+ const html=renderReleaseOperatorConsole();
+ assert.match(html,/api\\/owner-task-preflight\\?taskId=/);
+ assert.match(html,/api\\/owner-approval-history\\?taskId=/);
+ assert.match(html,/byId\\('audit-token'\\)/);
+ assert.match(html,/input\\.value=''/);
+ assert.match(html,/method:'GET'/);
+ assert.doesNotMatch(html,/fetch\\('\\/api\\/owner-approval'/);
+ assert.doesNotMatch(html,/fetch\\('\\/api\\/internal-executor-run'/);
+});
