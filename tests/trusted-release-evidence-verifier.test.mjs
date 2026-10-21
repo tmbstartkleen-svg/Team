@@ -37,3 +37,8 @@ test('no arbitrary source proof can activate release',async()=>{
  assert.equal(evaluation.launchReady,false);
  assert.equal(evaluation.missing.includes('real-read-adapter'),true);
 });
+
+test('malformed revocation cannot silently restore verified evidence',async()=>{
+ const broken=event('revocation-001',{verdict:'revoked',supersedes_event_id:'evidence-0001',artifact_sha256:'bad'});
+ assert.deepEqual(await run([event(),broken]),{});
+});
