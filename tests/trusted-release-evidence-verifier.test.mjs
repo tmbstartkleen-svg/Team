@@ -42,3 +42,8 @@ test('malformed revocation cannot silently restore verified evidence',async()=>{
  const broken=event('revocation-001',{verdict:'revoked',supersedes_event_id:'evidence-0001',artifact_sha256:'bad'});
  assert.deepEqual(await run([event(),broken]),{});
 });
+
+test('orphaned revocation blocks all certification rather than disappearing',async()=>{
+ const orphan=event('revocation-999',{verdict:'revoked',supersedes_event_id:'missing-source'});
+ assert.deepEqual(await run([event(),orphan]),{});
+});
