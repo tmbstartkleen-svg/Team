@@ -22,6 +22,8 @@ import {handleOwnerCollaboration} from '../lib/owner-collaboration-api.mjs';
 import {inspectTeamDatabase} from '../lib/d1-readiness.mjs';
 import {assessPersonaExecution} from '../lib/persona-execution-readiness.mjs';
 import {assessLaunchReadiness} from '../lib/launch-readiness.mjs';
+import {handleReleaseEvidenceDashboard} from '../lib/release-evidence-dashboard.mjs';
+import {handleReleaseOperatorConsole} from '../lib/release-operator-console.mjs';
 import {buildPlan} from '../lib/orchestration.mjs';
 const BACKEND_PATH=/^\/api\/[a-z0-9-]+\/?$/i;
 export default {
@@ -29,6 +31,8 @@ export default {
   const url=new URL(request.url);
   if(url.pathname==='/__team/health')return new Response(JSON.stringify({ok:true,service:'atlas-team-edge',hosting:'cloudflare',backend:'vercel-standby',backendVerified:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/health'&&request.method==='GET')return new Response(JSON.stringify({ok:true,service:'atlas-team',hosting:'cloudflare',mode:'edge-ui-with-standby-api',productionOperational:false,modelConfigured:false,executionConfigured:false,databaseSchemaVerified:false,backendVerified:false,microsoft365Connected:false,monitoringActive:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
+  if(url.pathname==='/release-console')return handleReleaseOperatorConsole(request);
+  if(url.pathname==='/api/release-evidence-dashboard')return handleReleaseEvidenceDashboard(request,env);
   if(url.pathname==='/api/launch-readiness'&&request.method==='GET'){const data=await assessLaunchReadiness(env);return new Response(JSON.stringify(data),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}})}
   if(url.pathname==='/api/persona-execution-readiness'&&request.method==='GET')return new Response(JSON.stringify({ok:true,...assessPersonaExecution(env)}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/api/github-tool-readiness'&&request.method==='GET')return new Response(JSON.stringify({ok:true,...githubToolReadiness(env)}),{headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
