@@ -23,3 +23,18 @@ CREATE INDEX IF NOT EXISTS team_release_evidence_by_requirement ON team_release_
 CREATE UNIQUE INDEX IF NOT EXISTS team_release_evidence_unique_artifact ON team_release_evidence_events(requirement_key,artifact_sha256,verdict);
 CREATE TRIGGER IF NOT EXISTS team_release_evidence_no_update BEFORE UPDATE ON team_release_evidence_events BEGIN SELECT RAISE(ABORT,'release_evidence_immutable'); END;
 CREATE TRIGGER IF NOT EXISTS team_release_evidence_no_delete BEFORE DELETE ON team_release_evidence_events BEGIN SELECT RAISE(ABORT,'release_evidence_immutable'); END;
+
+CREATE TRIGGER IF NOT EXISTS team_release_evidence_supersession_guard BEFORE INSERT ON team_release_evidence_events
+WHEN NEW.supersedes_event_id IS NOT NULL
+BEGIN
+ SELECT RAISE(ABORT,'invalid_release_evidence_supersession')
+ WHERE NEW.verdict NOT IN ('revoked','rejected')
+ OR NOT EXISTS (
+  SELECT 1 FROM team_release_evidence_events prior
+  WHERE prior.id=NEW.supersedes_event_id
+   AND prior.requirement_key=NEW.requirement_key
+   AND prior.environment=NEW.environment
+   AND prior.deployment_commit=NEW.deployment_commit
+   AND prior.verdict='verified'
+ );
+END;
