@@ -25,3 +25,33 @@ test('public route refuses mutations and does not accept caller-supplied trust',
  const payload=await response.json();
  assert.equal(payload.ok,false);
 });
+
+test('GET handler ignores attacker-controlled auth, commit and verification headers',async()=>{
+ let reads=0, writes=0;
+ const env={TEAM_DB:{prepare(sql){
+  if(!/^SELECT /i.test(sql))writes++;
+  return {bind(){return {all:async()=>{reads++;return {results:[ci]}}}}};
+ }}};
+ const request=new Request('https://atlas.example/release-evidence?verified=true&release=true',{headers:{
+  'x-team-release-evidence-read-enabled':'true',
+  'x-team-deployment-commit':commit,
+  'x-team-github-evidence-token':'forged-token',
+  authorization:'Bearer forged-token'
+ }});
+ const response=await handleReleaseEvidenceDashboard(request,env);
+ assert.equal(response.status,200);
+ const result=await response.json();
+ assert.equal(result.releaseEvidence.verified,0);
+ assert.equal(result.launchAuthorized,false);
+ assert.equal(result.remainingMilestones,5);
+ assert.equal(writes,0);
+ assert.equal(reads,0);
+ assert.equal(response.headers.get('cache-control'),'no-store');
+});
+test('GET handler cannot enable verification with a claimed opt-in but missing server credentials',async()=>{
+ const env={TEAM_DB:db([ci]),TEAM_RELEASE_EVIDENCE_READ_ENABLED:'true',TEAM_DEPLOYMENT_COMMIT:commit};
+ const response=await handleReleaseEvidenceDashboard(new Request('https://atlas.example/release-evidence'),env);
+ const result=await response.json();
+ assert.equal(result.releaseEvidence.verified,0);
+ assert.equal(result.launchAuthorized,false);
+});
