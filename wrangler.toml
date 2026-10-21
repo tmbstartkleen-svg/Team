@@ -23,3 +23,8 @@ class_name = "CertificationLedger"
 [[migrations]]
 tag = "cert-ledger-sqlite-v1"
 new_sqlite_classes = ["CertificationLedger"]
+
+# Enable production request logs with conservative sampling. Review privacy and retention before merge.
+[observability]
+enabled = true
+head_sampling_rate = 0.1
