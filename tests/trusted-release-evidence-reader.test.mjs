@@ -19,3 +19,8 @@ test('reader fails closed on source failure or conflicting duplicate ids',async(
  assert.deepEqual(await readTrustedReleaseEvidence({...args,verifiers:{'github-actions':async()=>{throw Error('offline')}}}),{});
  assert.deepEqual(await readTrustedReleaseEvidence({...args,db:db([row,{...row}]),verifiers:{'github-actions':async()=>({verified:true,issuer:row.issuer,artifactDigest:digest})}}),{});
 });
+
+test('reader fails closed when a full result page may omit revocations',async()=>{
+ const rows=Array.from({length:500},(_,i)=>({...row,id:'evidence-'+String(i).padStart(6,'0'),artifact_sha256:digest}));
+ assert.deepEqual(await readTrustedReleaseEvidence({db:db(rows),deploymentCommit:commit,now:row.event_time,verifiers:{'github-actions':async()=>({verified:true,issuer:row.issuer,artifactDigest:digest})}}),{});
+});
