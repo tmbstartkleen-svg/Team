@@ -38,3 +38,9 @@ BEGIN
    AND prior.verdict='verified'
  );
 END;
+
+-- A revocation must name existing evidence and each source event may be revoked only once.
+CREATE UNIQUE INDEX IF NOT EXISTS team_release_evidence_unique_revocation ON team_release_evidence_events(supersedes_event_id) WHERE verdict='revoked';
+CREATE TRIGGER IF NOT EXISTS team_release_evidence_revocation_requires_target BEFORE INSERT ON team_release_evidence_events
+WHEN NEW.verdict='revoked' AND NEW.supersedes_event_id IS NULL
+BEGIN SELECT RAISE(ABORT,'release_evidence_revocation_target_required'); END;
