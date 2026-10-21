@@ -69,3 +69,13 @@ test('SQLite rejects cross-requirement and cross-environment revocations',()=>{
   assert.throws(()=>insert(db,event('bad-verdict',{verdict:'verified',artifact_sha256:'1'.repeat(64),supersedes_event_id:'event-001'})),/invalid_release_evidence_supersession/);
  }finally{db.close()}
 });
+
+test('SQLite revocations must identify one target and cannot revoke it twice',()=>{
+ const db=setup();
+ try{
+  insert(db,event());
+  assert.throws(()=>insert(db,event('rev-without-target',{verdict:'revoked',artifact_sha256:'2'.repeat(64)})),/release_evidence_revocation_target_required/);
+  insert(db,event('rev-first',{verdict:'revoked',artifact_sha256:'3'.repeat(64),supersedes_event_id:'event-001'}));
+  assert.throws(()=>insert(db,event('rev-second',{verdict:'revoked',artifact_sha256:'4'.repeat(64),supersedes_event_id:'event-001'})),/constraint/i);
+ }finally{db.close()}
+});
