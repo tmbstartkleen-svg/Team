@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readTrustedReleaseEvidence} from '../lib/trusted-release-evidence-reader.mjs';
+const commit='a'.repeat(40),digest='b'.repeat(64);
+const row={id:'evidence-0001',requirement_key:'ci',issuer:'github-actions',source_family:'github-actions',artifact_ref:'https://github.com/example/Team/actions/runs/123',artifact_sha256:digest,environment:'production',deployment_commit:commit,verification_method:'signed-artifact-lookup',verdict:'verified',supersedes_event_id:null,event_time:'2026-10-21T12:00:00Z'};
+const db=(results)=>({prepare(sql){assert.match(sql,/SELECT id,requirement_key/);assert.doesNotMatch(sql,/INSERT|UPDATE|DELETE/i);return {bind(...args){assert.deepEqual(args,['production',commit]);return {all:async()=>({results})}}}}});
+test('reader blocks absent binding, invalid context and schema errors',async()=>{
+ assert.deepEqual(await readTrustedReleaseEvidence({deploymentCommit:commit,now:row.event_time,verifiers:{}}),{});
+ assert.deepEqual(await readTrustedReleaseEvidence({db:db([row]),deploymentCommit:'bad',now:row.event_time,verifiers:{}}),{});
+ assert.deepEqual(await readTrustedReleaseEvidence({db:{prepare(){throw Error('missing table')}},deploymentCommit:commit,now:row.event_time,verifiers:{}}),{});
+});
+test('reader never treats a stored verified flag as proof',async()=>{
+ assert.deepEqual(await readTrustedReleaseEvidence({db:db([row]),deploymentCommit:commit,now:row.event_time,verifiers:{}}),{});
+ const result=await readTrustedReleaseEvidence({db:db([row]),deploymentCommit:commit,now:row.event_time,verifiers:{'github-actions':async()=>({verified:true,issuer:row.issuer,artifactDigest:digest})}});
+ assert.equal(result.ci.verified,true);
+});
+test('reader fails closed on source failure or conflicting duplicate ids',async()=>{
+ const args={db:db([row]),deploymentCommit:commit,now:row.event_time};
+ assert.deepEqual(await readTrustedReleaseEvidence({...args,verifiers:{'github-actions':async()=>{throw Error('offline')}}}),{});
+ assert.deepEqual(await readTrustedReleaseEvidence({...args,db:db([row,{...row}]),verifiers:{'github-actions':async()=>({verified:true,issuer:row.issuer,artifactDigest:digest})}}),{});
+});
