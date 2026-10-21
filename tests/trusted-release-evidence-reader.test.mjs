@@ -35,3 +35,16 @@ test('reader finds a revocation in a second evidence page',async()=>{
  // Other evidence can remain eligible, but the revoked event must be excluded.
  assert.equal(result.ci?.verified,true);
 });
+
+test('reader excludes the only verified evidence when its revocation is on a later page',async()=>{
+ const first=[{...row,id:'evidence-target'},...Array.from({length:499},(_,i)=>({...row,id:'expired-'+String(i).padStart(6,'0'),event_time:'2020-01-01T00:00:00Z'}))];
+ const revocation={...row,id:'revocation-later',verdict:'revoked',supersedes_event_id:'evidence-target'};
+ const paging={prepare(){return {bind(_environment,_commit,offset){return {all:async()=>({results:offset===0?first:offset===500?[revocation]:[]})}}}}};
+ const proof=await readTrustedReleaseEvidence({db:paging,deploymentCommit:commit,now:row.event_time,verifiers:{'github-actions':async()=>({verified:true,issuer:row.issuer,artifactDigest:digest})}});
+ assert.deepEqual(proof,{});
+});
+test('reader fails closed on an incomplete later page',async()=>{
+ const first=Array.from({length:500},(_,i)=>({...row,id:'evidence-'+String(i).padStart(6,'0')}));
+ const paging={prepare(){return {bind(_environment,_commit,offset){return {all:async()=>{if(offset===0)return {results:first};throw Error('D1 partial outage')}}}}}};
+ assert.deepEqual(await readTrustedReleaseEvidence({db:paging,deploymentCommit:commit,now:row.event_time,verifiers:{'github-actions':async()=>({verified:true,issuer:row.issuer,artifactDigest:digest})}}),{});
+});
