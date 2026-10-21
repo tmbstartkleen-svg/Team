@@ -59,3 +59,13 @@ test('SQLite supports immutable revocation referencing a prior event',()=>{
   assert.throws(()=>insert(db,event('event-bad-ref',{artifact_sha256:'d'.repeat(64),supersedes_event_id:'not-found'})),/constraint/i);
  }finally{db.close()}
 });
+
+test('SQLite rejects cross-requirement and cross-environment revocations',()=>{
+ const db=setup();
+ try{
+  insert(db,event());
+  assert.throws(()=>insert(db,event('bad-scope',{requirement_key:'rollback',verdict:'revoked',artifact_sha256:'e'.repeat(64),supersedes_event_id:'event-001'})),/invalid_release_evidence_supersession/);
+  assert.throws(()=>insert(db,event('bad-environment',{environment:'production',verdict:'revoked',artifact_sha256:'f'.repeat(64),supersedes_event_id:'event-001'})),/invalid_release_evidence_supersession/);
+  assert.throws(()=>insert(db,event('bad-verdict',{verdict:'verified',artifact_sha256:'1'.repeat(64),supersedes_event_id:'event-001'})),/invalid_release_evidence_supersession/);
+ }finally{db.close()}
+});
