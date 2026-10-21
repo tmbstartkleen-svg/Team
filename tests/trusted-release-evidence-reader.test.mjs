@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readTrustedReleaseEvidence} from '../lib/trusted-release-evidence-reader.mjs';
 const commit='a'.repeat(40),digest='b'.repeat(64);
 const row={id:'evidence-0001',requirement_key:'ci',issuer:'github-actions',source_family:'github-actions',artifact_ref:'https://github.com/example/Team/actions/runs/123',artifact_sha256:digest,environment:'production',deployment_commit:commit,verification_method:'signed-artifact-lookup',verdict:'verified',supersedes_event_id:null,event_time:'2026-10-21T12:00:00Z'};
-const db=(results)=>({prepare(sql){assert.match(sql,/SELECT id,requirement_key/);assert.doesNotMatch(sql,/INSERT|UPDATE|DELETE/i);return {bind(...args){assert.deepEqual(args,['production',commit]);return {all:async()=>({results})}}}}});
+const db=(results)=>({prepare(sql){assert.match(sql,/SELECT id,requirement_key/);assert.doesNotMatch(sql,/INSERT|UPDATE|DELETE/i);return {bind(...args){assert.deepEqual(args,['production',commit,0]);return {all:async()=>({results})}}}}});
 test('reader blocks absent binding, invalid context and schema errors',async()=>{
  assert.deepEqual(await readTrustedReleaseEvidence({deploymentCommit:commit,now:row.event_time,verifiers:{}}),{});
  assert.deepEqual(await readTrustedReleaseEvidence({db:db([row]),deploymentCommit:'bad',now:row.event_time,verifiers:{}}),{});
@@ -23,4 +23,15 @@ test('reader fails closed on source failure or conflicting duplicate ids',async(
 test('reader fails closed when a full result page may omit revocations',async()=>{
  const rows=Array.from({length:500},(_,i)=>({...row,id:'evidence-'+String(i).padStart(6,'0'),artifact_sha256:digest}));
  assert.deepEqual(await readTrustedReleaseEvidence({db:db(rows),deploymentCommit:commit,now:row.event_time,verifiers:{'github-actions':async()=>({verified:true,issuer:row.issuer,artifactDigest:digest})}}),{});
+});
+
+test('reader finds a revocation in a second evidence page',async()=>{
+ const first=Array.from({length:500},(_,i)=>({...row,id:'evidence-'+String(i).padStart(6,'0')}));
+ const revocation={...row,id:'revocation-0500',verdict:'revoked',supersedes_event_id:'evidence-000000'};
+ const seen=[];
+ const paging={prepare(){return{bind(environment,sha,offset){seen.push(offset);return{all:async()=>({results:offset===0?first:offset===500?[revocation]:[]})}}}}};
+ const result=await readTrustedReleaseEvidence({db:paging,deploymentCommit:commit,now:row.event_time,verifiers:{'github-actions':async()=>({verified:true,issuer:row.issuer,artifactDigest:digest})}});
+ assert.deepEqual(seen,[0,500]);
+ // Other evidence can remain eligible, but the revoked event must be excluded.
+ assert.equal(result.ci?.verified,true);
 });
