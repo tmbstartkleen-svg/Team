@@ -56,7 +56,7 @@ test('SQLite supports immutable revocation referencing a prior event',()=>{
   insert(db,event());
   insert(db,event('event-revoked',{verdict:'revoked',artifact_sha256:'c'.repeat(64),supersedes_event_id:'event-001'}));
   assert.equal(db.prepare("SELECT supersedes_event_id FROM team_release_evidence_events WHERE id='event-revoked'").get().supersedes_event_id,'event-001');
-  assert.throws(()=>insert(db,event('event-bad-ref',{artifact_sha256:'d'.repeat(64),supersedes_event_id:'not-found'})),/constraint/i);
+  assert.throws(()=>insert(db,event('event-bad-ref',{artifact_sha256:'d'.repeat(64),supersedes_event_id:'not-found'})),/invalid_release_evidence_supersession|constraint/i);
  }finally{db.close()}
 });
 
