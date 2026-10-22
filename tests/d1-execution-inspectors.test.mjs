@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createD1ExecutionInspectors} from '../lib/d1-execution-inspectors.mjs';
 const scope={taskId:'safe-task-123',stepId:'safe-step-123',idempotencyKey:'safe-key-123',receiptId:'receipt-123'};
 const db={prepare(sql){return {bind(...args){return {first:async()=>{
- if(sql.includes('FROM team_tasks'))return {task_id:scope.taskId,step_id:scope.stepId,state:'completed',tool:'github.read',idempotency_key:scope.idempotencyKey};
+ if(sql.includes('FROM team_tasks'))return {task_id:scope.taskId,step_id:scope.stepId,state:'verified',tool:'github.read',idempotency_key:scope.idempotencyKey};
  if(sql.includes('JOIN team_tool_step_grants'))return {task_id:scope.taskId,step_id:scope.stepId,state:'confirmed',receipt_id:scope.receiptId,evidence:'durable-evidence',tool:'github.read'};
  return {task_id:scope.taskId,step_id:scope.stepId,state:'confirmed',receipt_id:scope.receiptId};
  }}}}}};
