@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {verifyExecutionAttestation} from '../lib/execution-attestation-verifier.mjs';
 const proof={requirement:'real-read-adapter',taskId:'cert-new-safe-task',stepId:'github-repository-read',idempotencyKey:'new-safe-idempotency',receiptId:'receipt-safe-001'};
 const inspectors={
- inspectTask:async s=>({...s,state:'completed',tool:'github.read'}),
+ inspectTask:async s=>({...s,state:'verified',tool:'github.read'}),
  inspectLedger:async s=>({...s,found:true,state:'confirmed',receiptPresent:true}),
  inspectApproval:async s=>({...s,approved:true,ownerAuthenticated:true,approvedBeforeExecution:true}),
  inspectReceipt:async s=>({...s,durable:true,tool:'github.read'}),
