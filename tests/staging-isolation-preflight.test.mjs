@@ -12,6 +12,7 @@ test('production reuse, missing production reference, absent opt in, and prod en
  for(const patch of [
   {VERCEL_ENV:'production'},{TEAM_STAGING_TESTS_ENABLED:'false'},
   {TEAM_DATABASE_URL:base.TEAM_PRODUCTION_DATABASE_URL},
+  {TEAM_DATABASE_URL:'postgresql://another-user@prod.example.invalid/another_database'},
   {TEAM_PRODUCTION_DATABASE_URL:''},{TEAM_STAGING_INSTANCE_ID:''},
   {TEAM_DATABASE_URL:'sqlite:memory'}
  ])assert.equal(checkStagingIsolation({...base,...patch}).safe,false,JSON.stringify(patch));
