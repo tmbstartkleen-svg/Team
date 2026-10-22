@@ -10,7 +10,7 @@ test('signed approval and observed denial verify against pinned public key',asyn
  const pair=await webcrypto.subtle.generateKey({name:'Ed25519'},true,['sign','verify']);
  const publicKey=b64(await webcrypto.subtle.exportKey('raw',pair.publicKey));
  const emit=async kind=>{
-  const event={...scope,eventId:'audit-event-123',kind,deploymentCommit:'a'.repeat(40),timestamp:now,sourceEventAt:now,
+  const event={...scope,eventId:'audit-event-123',kind,deploymentCommit:'a'.repeat(40),timestamp:now,sourceEventAt:now,originSourceId:'upstream-source-123',originEventId:kind==='owner-authenticated-approval'?'approval-event-123':'replay-event-123',
    ownerPrincipal:'owner-123',approved:true,ownerAuthenticated:true,approvedBeforeExecution:true,denied:true,reservationObserved:true};
   const payload=canonicalSignedAuditPayload(issuer,event);
   const signature=b64(await webcrypto.subtle.sign('Ed25519',pair.privateKey,payload));
