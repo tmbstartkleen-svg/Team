@@ -4,10 +4,10 @@ import {verifyExecutionAttestation} from '../lib/execution-attestation-verifier.
 const proof={requirement:'real-read-adapter',taskId:'cert-new-safe-task',stepId:'github-repository-read',idempotencyKey:'new-safe-idempotency',receiptId:'receipt-safe-001'};
 const inspectors={
  inspectTask:async s=>({...s,state:'verified',tool:'github.read'}),
- inspectLedger:async s=>({...s,found:true,state:'confirmed',receiptPresent:true}),
- inspectApproval:async s=>({...s,approved:true,ownerAuthenticated:true,approvedBeforeExecution:true}),
+ inspectLedger:async s=>({...s,found:true,state:'confirmed',receiptPresent:true,reservedAt:'2026-10-21 19:30:00'}),
+ inspectApproval:async s=>({...s,approved:true,ownerAuthenticated:true,approvedBeforeExecution:true,approvedAt:'2026-10-21T19:00:00Z'}),
  inspectReceipt:async s=>({...s,durable:true,tool:'github.read'}),
- inspectReplayDenial:async s=>({...s,denied:true})
+ inspectReplayDenial:async s=>({...s,denied:true,replayObservedAt:'2026-10-21T20:00:00Z'})
 };
 test('requires five independently matching read-only inspectors',async()=>{
  assert.equal((await verifyExecutionAttestation(proof,inspectors)).verified,true);
@@ -33,4 +33,12 @@ test('missing receipt, owner approval, replay denial and mismatched task fail cl
 test('write and dependent multi-persona require scoped proof',async()=>{
  assert.equal((await verifyExecutionAttestation({...proof,requirement:'approved-write-adapter'},inspectors)).verified,false);
  assert.equal((await verifyExecutionAttestation({...proof,requirement:'persona-e2e'},inspectors)).verified,false);
+});
+
+test('forged approval chronology or missing reservation time cannot certify',async()=>{
+ for(const overrides of [
+  {inspectApproval:async s=>({...s,approved:true,ownerAuthenticated:true,approvedBeforeExecution:true,approvedAt:'2026-10-21T19:40:00Z'})},
+  {inspectLedger:async s=>({...s,found:true,state:'confirmed',receiptPresent:true})},
+  {inspectReplayDenial:async s=>({...s,denied:true,replayObservedAt:'2026-10-21T19:10:00Z'})}
+ ])assert.equal((await verifyExecutionAttestation(proof,{...inspectors,...overrides})).verified,false);
 });
