@@ -267,9 +267,15 @@ jobs:
           const response=JSON.parse(fs.readFileSync('/tmp/atlas-final-deployments.json','utf8'));
           const items=response.result?.deployments;
           if(response.success!==true||!Array.isArray(items)||items.length<1)throw Error('final_deployment_unavailable');
+          // Cloudflare pagination/order is not itself proof of newest deployment.
+          // Reject unsorted/ambiguous inventories instead of silently trusting index zero.
+          const dates=items.map(x=>Date.parse(x.created_on));
+          if(dates.some(x=>!Number.isFinite(x))||dates.some((x,i)=>i>0&&x>=dates[i-1]))
+            throw Error('final_deployment_order_untrusted');
           const latest=items[0];
-          if(typeof latest.id!=='string'||!Array.isArray(latest.versions)||latest.versions.length!==1
-            ||latest.versions[0]?.percentage!==100||typeof latest.versions[0]?.version_id!=='string')
+          const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if(!uuid.test(latest.id||'')||!Array.isArray(latest.versions)||latest.versions.length!==1
+            ||latest.versions[0]?.percentage!==100||!uuid.test(latest.versions[0]?.version_id||''))
             throw Error('final_deployment_ambiguous');
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
             '\nFinal deployment ID: '+latest.id+'\nFinal version ID: '+latest.versions[0].version_id+
