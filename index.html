@@ -132,4 +132,6 @@ document.getElementById('run-safe-checks').addEventListener('click',async()=>{
  status.textContent=pass+' safe checks passed · '+fail+' failed or unverified. No mutations performed.';
  }finally{button.disabled=false}
 });
+refreshObservedHealth();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshObservedHealth()});
 </script></body></html>
