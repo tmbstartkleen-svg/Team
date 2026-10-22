@@ -20,8 +20,8 @@ test('stalled task report does not modify data without database',async()=>{const
 
 test('approval SQL only changes queued pending tasks',async()=>{const {readFileSync}=await import('node:fs');const source=readFileSync(new URL('../api/approve.js',import.meta.url),'utf8');assert.match(source,/approval=\\'pending\\' AND status=\\'queued\\'/)});
 
-test('database readiness probes task query only after schema verified',async()=>{const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../api/database-health.js',import.meta.url),'utf8');assert.match(src,/SELECT 1 FROM team_tasks LIMIT 0/);assert.match(src,/taskQueryVerified/)});
+test('database readiness probes task query only after schema verified',async()=>{const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../lib/database-readiness-inspector.mjs',import.meta.url),'utf8');assert.match(src,/SELECT 1 FROM team_tasks LIMIT 0/);assert.match(src,/taskQueryVerified/)});
 
-test('database read-only probe does not claim write permissions',async()=>{const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../api/database-health.js',import.meta.url),'utf8');assert.match(src,/let readable=false/);assert.match(src,/has_table_privilege/);assert.doesNotMatch(src,/INSERT INTO team_tasks/)});
+test('database read-only probe does not claim write permissions',async()=>{const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../lib/database-readiness-inspector.mjs',import.meta.url),'utf8');assert.match(src,/let readable=false/);assert.match(src,/has_table_privilege/);assert.doesNotMatch(src,/INSERT INTO team_tasks/)});
 
-test('database readiness checks actual table write privileges without writing data',async()=>{const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../api/database-health.js',import.meta.url),'utf8');assert.match(src,/has_table_privilege/);assert.match(src,/writePrivilegesVerified/)});
+test('database readiness checks actual table write privileges without writing data',async()=>{const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../lib/database-readiness-inspector.mjs',import.meta.url),'utf8');assert.match(src,/has_table_privilege/);assert.match(src,/writePrivilegesVerified/)});
