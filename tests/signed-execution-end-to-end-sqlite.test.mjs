@@ -41,6 +41,15 @@ test('signed approval precedes reservation and signed replay denial follows it',
   const inspector=createSignedExecutionAttestationReader({db,issuer,publicKey,deploymentCommit:commit,
    now:'2026-10-21T20:02:00Z',cryptoImpl:webcrypto,readEvent:createD1SignedAuditEventSource({db})});
   assert.equal((await inspector(scope)).verified,true);
+  // A fully signed chain must still fail when its persisted ledger scope changes.
+  sqlite.prepare('UPDATE team_tool_action_ledger SET task_id=?').run('different-task-100');
+  assert.deepEqual(await inspector(scope),{verified:false});
+  sqlite.prepare('UPDATE team_tool_action_ledger SET task_id=?').run(scope.taskId);
+  assert.equal((await inspector(scope)).verified,true);
+  // Altering the pinned commit cannot be rescued by valid signatures.
+  const wrongCommit=createSignedExecutionAttestationReader({db,issuer,publicKey,deploymentCommit:'b'.repeat(40),
+   now:'2026-10-21T20:02:00Z',cryptoImpl:webcrypto,readEvent:createD1SignedAuditEventSource({db})});
+  assert.deepEqual(await wrongCommit(scope),{verified:false});
   sqlite.prepare('UPDATE team_tool_action_ledger SET created_at=?').run('2026-10-21 18:30:00');
   assert.deepEqual(await inspector(scope),{verified:false});
  }finally{sqlite.close()}
