@@ -1,3 +1,4 @@
+import {canonicalSignedAuditPayload} from '../lib/signed-audit-canonical.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
@@ -11,14 +12,18 @@ test('signed approval and observed denial verify against pinned public key',asyn
  const emit=async kind=>{
   const event={...scope,eventId:'audit-event-123',kind,deploymentCommit:'a'.repeat(40),timestamp:now,
    ownerPrincipal:'owner-123',approved:true,ownerAuthenticated:true,approvedBeforeExecution:true,denied:true,reservationObserved:true};
-  const payload=[issuer,event.eventId,event.kind,event.taskId,event.stepId,event.idempotencyKey,event.deploymentCommit,event.timestamp,kind==='owner-authenticated-approval'?event.ownerPrincipal:'',kind==='owner-authenticated-approval'?'approved':'denied'].join('\n');
-  const signature=b64(await webcrypto.subtle.sign('Ed25519',pair.privateKey,new TextEncoder().encode(payload)));
+  const payload=canonicalSignedAuditPayload(issuer,event);
+  const signature=b64(await webcrypto.subtle.sign('Ed25519',pair.privateKey,payload));
   return {issuer,event,signature};
  };
  const approved=await emit('owner-authenticated-approval'),replay=await emit('observed-replay-denial');
  const reader=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async s=>s.kind===approved.event.kind?approved:replay});
  assert.equal((await reader.approvalEvidence(scope)).sourceVerified,true);
  assert.equal((await reader.replayEvidence(scope)).sourceVerified,true);
+ const tamperedApproval=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async()=>({...approved,event:{...approved.event,approvedBeforeExecution:false}})});
+ assert.deepEqual(await tamperedApproval.approvalEvidence(scope),{});
+ const tamperedReplay=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async()=>({...replay,event:{...replay.event,reservationObserved:false}})});
+ assert.deepEqual(await tamperedReplay.replayEvidence(scope),{});
  const forged=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async()=>({...approved,event:{...approved.event,taskId:'different-task'}})});
  assert.deepEqual(await forged.approvalEvidence(scope),{});
  const forgedIssuer=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async()=>({...approved,issuer:'evil'})});
