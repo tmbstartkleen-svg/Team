@@ -20,7 +20,7 @@ const database=()=>{
 };
 const trusted=async s=>({...s,originAuthenticated:true,
  ownerPrincipal:'owner-issuer-123',approved:true,ownerAuthenticated:true,
- approvedBeforeExecution:true,denied:true,reservationObserved:true});
+ approvedBeforeExecution:true,denied:true,reservationObserved:true,sourceEventAt:now});
 test('signed records round-trip through real SQLite and independent pinned-key verifier',async()=>{
  const {db,sqlite}=database();
  try{
