@@ -92,5 +92,34 @@ const importButton=document.createElement('button');importButton.className='butt
 importButton.onclick=()=>importer.click();
 importer.onchange=async()=>{const file=importer.files?.[0];if(!file)return;try{if(file.size>1000000)throw Error('File exceeds 1 MB');const value=JSON.parse(await file.text());if(!Array.isArray(value.projects)||!Array.isArray(value.tasks)||value.projects.length>1000||value.tasks.length>3000)throw Error('Invalid TEAM export');if(!value.projects.every(p=>p&&typeof p.name==='string')||!value.tasks.every(t=>t&&typeof t.title==='string'))throw Error('Malformed projects or tasks');if(!confirm('Replace local TEAM projects and tasks with imported data?'))return;state={projects:value.projects.map(p=>({name:p.name.slice(0,100),status:String(p.status||'Planned').slice(0,30)})),tasks:value.tasks.map((t,i)=>({id:'import-'+i,title:t.title.slice(0,140),agent:roles.includes(t.agent)?t.agent:'Chief Architect',priority:['Low','Medium','High','Critical'].includes(t.priority)?t.priority:'Medium',status:'Queued',approval:'pending'})),activity:[]};audit('import','Imported browser-local project and task records; approvals reset');save();render()}catch(error){alert('Import rejected: '+error.message)}finally{importer.value=''}};
 document.getElementById('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='atlas-team-export.json';a.click();URL.revokeObjectURL(url)});render();
-document.getElementById('run-safe-checks').addEventListener('click',async()=>{const button=document.getElementById('run-safe-checks'),status=document.getElementById('live-check-status'),results=document.getElementById('live-check-results');button.disabled=true;status.textContent='Checking...';results.textContent='';const routes=['/api/health','/api/readiness','/api/database-health'];for(const route of routes){const line=document.createElement('div');line.className='card';line.style.margin='8px 0';const heading=document.createElement('b');heading.textContent=route;const detail=document.createElement('small');line.append(heading,detail);results.append(line);try{const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),7000);let res;try{res=await fetch(route,{method:'GET',credentials:'same-origin',cache:'no-store',signal:ctl.signal,headers:{accept:'application/json'}})}finally{clearTimeout(tm)}detail.textContent=res.ok?'HTTP '+res.status+' — reachable (not certification)':'HTTP '+res.status+' — unavailable or authorization required';}catch(e){detail.textContent='Unable to verify ('+(e.name==='AbortError'?'timeout':'network or access restriction')+')';}}status.textContent='Checks complete; no mutations performed';button.disabled=false;});
+document.getElementById('run-safe-checks').addEventListener('click',async()=>{
+ const button=document.getElementById('run-safe-checks'),status=document.getElementById('live-check-status'),results=document.getElementById('live-check-results');
+ button.disabled=true;status.textContent='Checking public and protected endpoints...';results.textContent='';
+ const routes=[{path:'/api/health',public:true},{path:'/api/readiness',public:false},{path:'/api/database-health',public:false}];
+ let pass=0,fail=0;
+ try{
+ for(const route of routes){
+  const line=document.createElement('div');line.className='card';line.style.margin='8px 0';
+  const heading=document.createElement('b'),detail=document.createElement('small');heading.textContent=route.path;
+  line.append(heading,detail);results.append(line);
+  const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),7000);
+  try{
+   const res=await fetch(route.path,{method:'GET',credentials:'same-origin',cache:'no-store',signal:ctl.signal,headers:{accept:'application/json'}});
+   const type=res.headers.get('content-type')||'';
+   let payload=null;if(type.includes('application/json'))payload=await res.json();
+   if(route.public){
+    const valid=res.status===200&&payload?.ok===true&&payload?.service==='atlas-team'&&payload?.productionOperational===false;
+    detail.textContent=valid?'PASS — public API healthy, production operation disabled':'FAIL — unexpected public health contract (HTTP '+res.status+')';
+    valid?pass++:fail++;
+   }else{
+    const gated=res.status===401&&payload?.error==='unauthorized';
+    detail.textContent=gated?'PASS — protected endpoint denies unauthenticated access':res.status===200?'CHECK — authorized session; response is not operational certification':'FAIL — unexpected protected endpoint response (HTTP '+res.status+')';
+    gated?pass++:fail++;
+   }
+  }catch(e){detail.textContent='FAIL — '+(e.name==='AbortError'?'request timed out':'network or access restriction');fail++}
+  finally{clearTimeout(tm)}
+ }
+ status.textContent=pass+' safe checks passed · '+fail+' failed or unverified. No mutations performed.';
+ }finally{button.disabled=false}
+});
 </script></body></html>
