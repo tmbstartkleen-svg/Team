@@ -47,3 +47,9 @@ test('orphaned revocation blocks all certification rather than disappearing',asy
  const orphan=event('revocation-999',{verdict:'revoked',supersedes_event_id:'missing-source'});
  assert.deepEqual(await run([event(),orphan]),{});
 });
+
+test('unknown verdict and malformed rejected supersession fail closed even beside valid CI',async()=>{
+ assert.deepEqual(await run([event(),event('unknown-verdict',{verdict:'accepted'})]),{});
+ assert.deepEqual(await run([event(),event('rejection-01',{verdict:'rejected',supersedes_event_id:'missing-proof'})]),{});
+ assert.deepEqual(await run([event(),event('rejection-02',{verdict:'rejected',supersedes_event_id:'bad id'})]),{});
+});
