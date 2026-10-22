@@ -33,6 +33,13 @@ test('two distinct signers establish end-to-end provenance from origin to persis
     publicKey:b64(await webcrypto.subtle.exportKey('raw',auditKeys.publicKey)),issuer:auditIssuer,
     deploymentCommit,now,cryptoImpl:webcrypto});
   assert.equal((await verify.approvalEvidence(scope)).sourceVerified,true);
+  // A source signature for a different task cannot be laundered into new evidence.
+  const wrongScope={...scope,taskId:'safe-task-999'};
+  assert.equal((await p.record({kind:event.kind,...wrongScope})).recorded,false);
+  // The historical ambiguous and unapproved certifications are immutable exclusions.
+  for(const taskId of ['cert-github-read-20261018','cert-github-read-20261019-v2'])
+   assert.equal((await p.record({kind:event.kind,...scope,taskId})).recorded,false);
+  assert.equal(dbSqlite.prepare('SELECT COUNT(*) AS count FROM team_signed_audit_events').get().count,1);
   assert.equal((await p.record({kind:event.kind,...scope})).recorded,false);
   const tampered=buildVerifiedAuditProducer({...params,readOrigin:async()=>({issuer:originIssuer,event:{...event,ownerPrincipal:'other-owner-321'},signature:originSig})});
   assert.equal((await tampered.record({kind:event.kind,...scope,idempotencyKey:'safe-key-999'})).recorded,false);
