@@ -9,10 +9,11 @@ test('source configuration disabled unless separately opted in',()=>{
  assert.deepEqual(buildTrustedReleaseSources({...env,TEAM_DEPLOYMENT_COMMIT:'unknown'},{fetchImpl,now}),{});
  assert.deepEqual(buildTrustedReleaseSources(env,{now}),{});
 });
-test('enabled composition allows only read-only GitHub CI evidence, never owner approvals',async()=>{
+test('enabled composition allows only read-only GitHub CI and main-head evidence, never owner approvals',async()=>{
  const sources=buildTrustedReleaseSources(env,{fetchImpl,now});
  assert.equal(sources.deploymentCommit,commit);
- assert.deepEqual(Object.keys(sources.verifiers),['github-actions']);
+ assert.deepEqual(Object.keys(sources.verifiers),['github-main','github-actions']);
  assert.equal((await sources.verifiers['github-actions']({requirement:'owner-signoff'})).verified,false);
+ assert.equal((await sources.verifiers['github-main']({requirement:'owner-signoff'})).verified,false);
  assert.equal(Object.isFrozen(sources.verifiers),true);
 });
