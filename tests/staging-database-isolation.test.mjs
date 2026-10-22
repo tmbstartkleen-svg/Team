@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {withDb} from '../lib/database.mjs';
 import tasks from '../api/tasks.js';
-function fakeResponse(){let status,body;return {get status(){return status},get body(){return body},setHeader(){},status(n){status=n;return this},json(data){body=data;return this}}}
+function fakeResponse(){let status,body;return {get statusCode(){return status},get body(){return body},setHeader(){},status(n){status=n;return this},json(data){body=data;return this}}}
 test('no database configuration fails closed without executing callbacks',async()=>{
  const before=process.env.TEAM_DATABASE_URL;
  delete process.env.TEAM_DATABASE_URL;
@@ -21,7 +21,7 @@ test('authenticated task listing cannot silently use browser-local or production
  try{
   const response=fakeResponse();
   await tasks({method:'GET',headers:{authorization:'Bearer isolated-staging-test-only'}},response);
-  assert.equal(response.status,503);
+  assert.equal(response.statusCode,503);
   assert.equal(response.body.error,'database_not_configured');
  }finally{
   if(dbBefore===undefined)delete process.env.TEAM_DATABASE_URL;else process.env.TEAM_DATABASE_URL=dbBefore;
