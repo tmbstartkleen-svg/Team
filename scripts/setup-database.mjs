@@ -4,8 +4,12 @@ import {readFileSync} from 'node:fs';
 import {checkStagingIsolation} from '../lib/staging-isolation-preflight.mjs';
 const url=process.env.TEAM_DATABASE_URL;
 const verifyOnly=process.argv.includes('--verify-only');
-const writeGuard=verifyOnly?null:checkStagingIsolation(process.env);
-if(!verifyOnly&&(process.env.TEAM_STAGING_SCHEMA_APPLY_APPROVED!=='true'||writeGuard.safe!==true)){
+const stagingGuard=checkStagingIsolation(process.env);
+// Even read-only verification must not contact an unidentified database from preview.
+if(process.env.VERCEL_ENV==='preview'&&stagingGuard.safe!==true){
+ console.error('Staging database access blocked: isolation preflight failed');
+ process.exitCode=5;
+}else if(!verifyOnly&&(process.env.TEAM_STAGING_SCHEMA_APPLY_APPROVED!=='true'||stagingGuard.safe!==true)){
  console.error('Schema application blocked: requires explicit staging-only authorization and isolation preflight');
  process.exitCode=5;
 }else if(!url){console.error('TEAM_DATABASE_URL is required');process.exitCode=2}
