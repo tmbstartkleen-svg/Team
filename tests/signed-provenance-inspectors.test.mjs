@@ -20,6 +20,14 @@ test('signed approval and observed denial verify against pinned public key',asyn
  const reader=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async s=>s.kind===approved.event.kind?approved:replay});
  assert.equal((await reader.approvalEvidence(scope)).sourceVerified,true);
  assert.equal((await reader.replayEvidence(scope)).sourceVerified,true);
+ const originallyUnapproved={...approved.event,approvedBeforeExecution:false};
+ const unapprovedSignature=b64(await webcrypto.subtle.sign('Ed25519',pair.privateKey,canonicalSignedAuditPayload(issuer,originallyUnapproved)));
+ const upgradedApproval=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async()=>({issuer,event:{...originallyUnapproved,approvedBeforeExecution:true},signature:unapprovedSignature})});
+ assert.deepEqual(await upgradedApproval.approvalEvidence(scope),{});
+ const originallyUnobserved={...replay.event,reservationObserved:false};
+ const unobservedSignature=b64(await webcrypto.subtle.sign('Ed25519',pair.privateKey,canonicalSignedAuditPayload(issuer,originallyUnobserved)));
+ const upgradedReplay=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async()=>({issuer,event:{...originallyUnobserved,reservationObserved:true},signature:unobservedSignature})});
+ assert.deepEqual(await upgradedReplay.replayEvidence(scope),{});
  const tamperedApproval=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async()=>({...approved,event:{...approved.event,approvedBeforeExecution:false}})});
  assert.deepEqual(await tamperedApproval.approvalEvidence(scope),{});
  const tamperedReplay=createSignedProvenanceInspectors({issuer,publicKey,now,cryptoImpl:webcrypto,readEvent:async()=>({...replay,event:{...replay.event,reservationObserved:false}})});
