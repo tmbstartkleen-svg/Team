@@ -8,6 +8,8 @@ export default function handler(req,res){
   ok:true,service:'atlas-team',version:'0.33.0',releaseCommit:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null,executionConfigured:configured,
   modelConfigured:Boolean(process.env.OPENAI_API_KEY),accessConfigured:Boolean(process.env.TEAM_ADMIN_TOKEN),
   mode:'approval-gated-server',
+  environment:process.env.VERCEL_ENV==='production'?'production':process.env.VERCEL_ENV==='preview'?'preview':'unknown',
+  configuration:{operatorSecretPresent:Boolean(process.env.TEAM_ADMIN_TOKEN),databaseUrlPresent:Boolean(process.env.TEAM_DATABASE_URL),modelKeyPresent:Boolean(process.env.OPENAI_API_KEY),modelAllowlistPresent:Boolean((process.env.TEAM_ALLOWED_MODELS||'').trim())},
   productionOperational:false,
   capabilities:{
    taskRouting:'local',taskApprovals:process.env.TEAM_DATABASE_URL?'server-available-if-schema-ready':'browser-local',
