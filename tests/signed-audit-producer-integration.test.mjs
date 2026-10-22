@@ -18,7 +18,7 @@ const database=()=>{
   all:async()=>({results:sqlite.prepare(sql).all(...args)})
  }}}}}};
 };
-const trusted=async s=>({...s,originAuthenticated:true,
+const trusted=async s=>({...s,originAuthenticated:true,sourceId:'origin-source-123',eventId:'origin-event-123',
  ownerPrincipal:'owner-issuer-123',approved:true,ownerAuthenticated:true,
  approvedBeforeExecution:true,denied:true,reservationObserved:true,sourceEventAt:now});
 test('signed records round-trip through real SQLite and independent pinned-key verifier',async()=>{
