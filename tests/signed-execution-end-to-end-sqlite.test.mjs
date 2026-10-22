@@ -29,7 +29,7 @@ test('signed approval precedes reservation and signed replay denial follows it',
   const pair=await webcrypto.subtle.generateKey('Ed25519',true,['sign','verify']);
   const publicKey=b64(await webcrypto.subtle.exportKey('raw',pair.publicKey));
   let signingAt='2026-10-21T19:01:00Z';
-  const observer=async s=>({...s,originAuthenticated:true,sourceId:'origin-source-123',eventId:'origin-event-123',ownerPrincipal:'owner-issuer-123',
+  const observer=async s=>({...s,originAuthenticated:true,sourceId:'origin-source-123',eventId:s.kind==='owner-authenticated-approval'?'origin-approval-123':'origin-replay-123',ownerPrincipal:'owner-issuer-123',
    approved:true,ownerAuthenticated:true,approvedBeforeExecution:true,denied:true,
    reservationObserved:true,sourceEventAt:s.kind==='owner-authenticated-approval'
     ?'2026-10-21T19:00:00Z':'2026-10-21T20:00:00Z'});
