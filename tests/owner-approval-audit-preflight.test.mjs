@@ -6,7 +6,7 @@ function db({valid=true,rows=[{id:'audit-record-123',actor:'owner',decision:'app
  let reads=0;
  return {get reads(){return reads},prepare(sql){
   assert.match(sql,/^SELECT /);reads++;
-  return {bind(){return {first:async()=>valid?{...scope,enabled:1,created_at:'2026-10-21 19:10:00'}:null,all:async()=>({results:rows})}}};
+  return {bind(){return {first:async()=>valid?{task_id:scope.taskId,step_id:scope.stepId,idempotency_key:scope.idempotencyKey,enabled:1,created_at:'2026-10-21 19:10:00'}:null,all:async()=>({results:rows})}}};
  }};
 }
 test('historical approval is only a preflight; it never authenticates owner provenance',async()=>{
