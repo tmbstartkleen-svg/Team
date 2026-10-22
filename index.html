@@ -44,10 +44,10 @@ const views={overview:'Command Center',workforce:'Workforce',projects:'Projects'
 let current='overview';
 let observedHealth=null;
 let observedEdge=null;
-async function refreshEdgeStatus(){
- try{const r=await fetch('/api/edge-status',{credentials:'same-origin',cache:'no-store',headers:{accept:'application/json'}});const j=await r.json();observedEdge=j?.source==='cloudflare-public-read-only'?j:null;}catch{observedEdge=null}
+function refreshEdgeStatus(){
+ observedEdge=observedHealth?.edge?.source==='cloudflare-public-read-only'?observedHealth.edge:null;
  const el=document.getElementById('edge-status-results');
- if(el)el.textContent=!observedEdge?'Cloudflare: not verified':Object.entries(observedEdge.checks||{}).map(([name,v])=>name+': '+(v.reachable?'responding':'not verified')).join(' · ')+' · Public diagnostics only, no agent certification';
+ if(el)el.textContent=!observedEdge?'Cloudflare: not configured or unverified':Object.entries(observedEdge.checks||{}).map(([name,v])=>name+': '+(v.reachable?'responding':'not verified')).join(' · ')+' · Public diagnostics only, no agent certification';
 }
 
 const connectionStatus=()=>({
@@ -56,7 +56,7 @@ const connectionStatus=()=>({
  models:observedHealth?.modelConfigured===true?'Configured, unverified':'No verified models',
  execution:observedHealth?.productionOperational===true?'Reported enabled; verify independently':'Disabled'
 });
-async function refreshObservedHealth(){try{const r=await fetch('/api/health',{cache:'no-store',credentials:'same-origin',headers:{accept:'application/json'}});if(!r.ok)throw Error('health unavailable');const h=await r.json();if(h?.service!=='atlas-team'||h?.ok!==true)throw Error('unexpected health response');observedHealth=h;}catch{observedHealth=null}const out=document.getElementById('observed-connection-status');if(out)out.textContent=observedHealth?'Observed preview: model '+(observedHealth.modelConfigured?'configured but unverified':'not configured')+' · database '+(observedHealth.capabilities?.persistentStorage?'configured but unverified':'not connected')+' · production execution '+(observedHealth.productionOperational?'reported operational (requires independent verification)':'disabled'):'Preview backend health could not be verified';render();}
+async function refreshObservedHealth(){try{const r=await fetch('/api/health',{cache:'no-store',credentials:'same-origin',headers:{accept:'application/json'}});if(!r.ok)throw Error('health unavailable');const h=await r.json();if(h?.service!=='atlas-team'||h?.ok!==true)throw Error('unexpected health response');observedHealth=h;}catch{observedHealth=null}const out=document.getElementById('observed-connection-status');if(out)out.textContent=observedHealth?'Observed preview: model '+(observedHealth.modelConfigured?'configured but unverified':'not configured')+' · database '+(observedHealth.capabilities?.persistentStorage?'configured but unverified':'not connected')+' · production execution '+(observedHealth.productionOperational?'reported operational (requires independent verification)':'disabled'):'Preview backend health could not be verified';render();refreshEdgeStatus();}
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const PREF_KEY='atlas-team-preferences-v1';
