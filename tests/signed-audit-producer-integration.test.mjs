@@ -31,7 +31,7 @@ test('signed records round-trip through real SQLite and independent pinned-key v
    assert.equal((await producer.record({kind,...scope})).recorded,true);
   }
   const verify=createSignedProvenanceInspectors({readEvent:createD1SignedAuditEventSource({db}),
-   publicKey,issuer,now,cryptoImpl:webcrypto});
+   publicKey,issuer,deploymentCommit,now,cryptoImpl:webcrypto});
   assert.equal((await verify.approvalEvidence(scope)).sourceVerified,true);
   assert.equal((await verify.replayEvidence(scope)).sourceVerified,true);
   assert.equal((await producer.record({kind:'owner-authenticated-approval',...scope})).recorded,false);
