@@ -14,6 +14,10 @@ test('independently signed source confirms owner provenance; changed flags fail'
  const signature=b64(await webcrypto.subtle.sign('Ed25519',pair.privateKey,canonicalSignedAuditPayload(issuer,event)));
  const reader=createVerifiedOriginObserver({issuer,publicKey,sourceId:'origin-source-123',now,cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event,signature})});
  assert.equal((await reader(scope)).originAuthenticated,true);
+ const wrongSource=createVerifiedOriginObserver({issuer,publicKey,sourceId:'other-source-123',now,cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event,signature})});
+ assert.equal(await wrongSource(scope),null);
+ const wrongScope=createVerifiedOriginObserver({issuer,publicKey,sourceId:'origin-source-123',now,cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event:{...event,stepId:'other-step-123'},signature})});
+ assert.equal(await wrongScope(scope),null);
  const forged=createVerifiedOriginObserver({issuer,publicKey,sourceId:'origin-source-123',now,cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event:{...event,ownerPrincipal:'different-owner'},signature})});
  assert.equal(await forged(scope),null);
  const old=createVerifiedOriginObserver({issuer,publicKey,now:'2026-10-23T12:00:00Z',cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event,signature})});
