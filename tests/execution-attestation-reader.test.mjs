@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createExecutionAttestationReader} from '../lib/execution-attestation-reader.mjs';
 const scope={requirement:'real-read-adapter',taskId:'safe-cert-100',stepId:'safe-step-100',idempotencyKey:'safe-key-100',receiptId:'safe-receipt-100'};
 const db={prepare(sql){return{bind(){return{first:async()=>{
- if(sql.includes('FROM team_tasks'))return {task_id:scope.taskId,step_id:scope.stepId,state:'completed',tool:'github.read',idempotency_key:scope.idempotencyKey};
+ if(sql.includes('FROM team_tasks'))return {task_id:scope.taskId,step_id:scope.stepId,state:'verified',tool:'github.read',idempotency_key:scope.idempotencyKey};
  if(sql.includes('JOIN team_tool_step_grants'))return {task_id:scope.taskId,step_id:scope.stepId,state:'confirmed',receipt_id:scope.receiptId,evidence:'verified receipt text',tool:'github.read'};
  return {task_id:scope.taskId,step_id:scope.stepId,state:'confirmed',receipt_id:scope.receiptId};
  }}}}}};
