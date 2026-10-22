@@ -25,7 +25,7 @@ test('two distinct signers establish end-to-end provenance from origin to persis
    approved:true,ownerAuthenticated:true,approvedBeforeExecution:true};
   const originSig=b64(await webcrypto.subtle.sign('Ed25519',originKeys.privateKey,canonicalSignedAuditPayload(originIssuer,event)));
   const params={db,readOrigin:async()=>({issuer:originIssuer,event,signature:originSig}),
-   originIssuer,originPublicKey:b64(await webcrypto.subtle.exportKey('raw',originKeys.publicKey)),
+   originIssuer,originSourceId:'trusted-source-321',originPublicKey:b64(await webcrypto.subtle.exportKey('raw',originKeys.publicKey)),
    auditIssuer,auditPrivateKey:auditKeys.privateKey,deploymentCommit,now,cryptoImpl:webcrypto};
   const p=buildVerifiedAuditProducer(params);
   assert.equal((await p.record({kind:event.kind,...scope})).recorded,true);
