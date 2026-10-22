@@ -5,10 +5,10 @@ const scope={requirement:'real-read-adapter',taskId:'safe-cert-100',stepId:'safe
 const db={prepare(sql){return{bind(){return{first:async()=>{
  if(sql.includes('FROM team_tasks'))return {task_id:scope.taskId,step_id:scope.stepId,state:'verified',tool:'github.read',idempotency_key:scope.idempotencyKey};
  if(sql.includes('JOIN team_tool_step_grants'))return {task_id:scope.taskId,step_id:scope.stepId,state:'confirmed',receipt_id:scope.receiptId,evidence:'verified receipt text',tool:'github.read'};
- return {task_id:scope.taskId,step_id:scope.stepId,state:'confirmed',receipt_id:scope.receiptId};
+ return {task_id:scope.taskId,step_id:scope.stepId,state:'confirmed',receipt_id:scope.receiptId,created_at:'2026-10-21 19:30:00'};
  }}}}}};
-const approvalEvidence=async s=>({...s,kind:'owner-authenticated-approval',sourceVerified:true,approved:true,ownerAuthenticated:true,approvedBeforeExecution:true});
-const replayEvidence=async s=>({...s,kind:'observed-replay-denial',sourceVerified:true,denied:true});
+const approvalEvidence=async s=>({...s,kind:'owner-authenticated-approval',sourceVerified:true,approved:true,ownerAuthenticated:true,approvedBeforeExecution:true,approvedAt:'2026-10-21T19:00:00Z'});
+const replayEvidence=async s=>({...s,kind:'observed-replay-denial',sourceVerified:true,denied:true,replayObservedAt:'2026-10-21T20:00:00Z'});
 test('unconfigured attestation never certifies even with persisted D1 receipt',async()=>{
  const inspect=createExecutionAttestationReader({db});
  assert.deepEqual(await inspect(scope),{verified:false});
