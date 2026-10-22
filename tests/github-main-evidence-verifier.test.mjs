@@ -22,3 +22,11 @@ test('network failures and missing credentials fail closed',async()=>{
  assert.equal((await offline(proof)).verified,false);
  assert.equal((await createGithubMainEvidenceVerifier({repository,cryptoImpl:webcrypto,fetchImpl:async()=>response()})(proof)).verified,false);
 });
+
+test('branch API response must identify main, not merely repeat a matching SHA',async()=>{
+ for(const branchName of ['feature/test','master',undefined]){
+  const verifier=createGithubMainEvidenceVerifier({repository,apiToken:'test-only',cryptoImpl:webcrypto,
+   fetchImpl:async()=>({ok:true,json:async()=>({name:branchName,commit:{sha:commit}})})});
+  assert.equal((await verifier(proof)).verified,false);
+ }
+});
