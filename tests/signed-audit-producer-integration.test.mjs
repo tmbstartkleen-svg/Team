@@ -33,6 +33,9 @@ test('signed records round-trip through real SQLite and independent pinned-key v
   const verify=createSignedProvenanceInspectors({readEvent:createD1SignedAuditEventSource({db}),
    publicKey,issuer,deploymentCommit,now,cryptoImpl:webcrypto});
   assert.equal((await verify.approvalEvidence(scope)).sourceVerified,true);
+  const saved=sqlite.prepare("SELECT event_json FROM team_signed_audit_events WHERE kind='owner-authenticated-approval'").get();
+  assert.equal(JSON.parse(saved.event_json).originSourceId,'origin-source-123');
+  assert.equal(JSON.parse(saved.event_json).originEventId,'origin-event-123');
   assert.equal((await verify.replayEvidence(scope)).sourceVerified,true);
   assert.equal((await producer.record({kind:'owner-authenticated-approval',...scope})).recorded,false);
   assert.equal(sqlite.prepare('SELECT count(*) AS count FROM team_signed_audit_events').get().count,2);
