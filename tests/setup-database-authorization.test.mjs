@@ -16,3 +16,10 @@ test('flag alone does not authorize schema write without isolated staging identi
  assert.equal(x.status,5);
  assert.match(x.stderr,/Schema application blocked/);
 });
+
+test('preview verify-only refuses unknown database before connecting',()=>{
+ const env={PATH:process.env.PATH,HOME:process.env.HOME,VERCEL_ENV:'preview',TEAM_DATABASE_URL:'postgresql://user@127.0.0.1/nonexistent'};
+ const result=spawnSync(process.execPath,[script.pathname,'--verify-only'],{env,encoding:'utf8',timeout:5000});
+ assert.equal(result.status,5);
+ assert.match(result.stderr,/Staging database access blocked/);
+});
