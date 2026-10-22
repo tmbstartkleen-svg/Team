@@ -29,6 +29,8 @@ test('two distinct signers establish end-to-end provenance from origin to persis
    auditIssuer,auditPrivateKey:auditKeys.privateKey,deploymentCommit,now,cryptoImpl:webcrypto};
   const p=buildVerifiedAuditProducer(params);
   assert.equal((await p.record({kind:event.kind,...scope})).recorded,true);
+  const sameKey=buildVerifiedAuditProducer({...params,auditPrivateKey:originKeys.privateKey});
+  assert.equal((await sameKey.record({kind:event.kind,...scope,idempotencyKey:'safe-key-999'})).recorded,false);
   const verify=createSignedProvenanceInspectors({readEvent:createD1SignedAuditEventSource({db}),
     publicKey:b64(await webcrypto.subtle.exportKey('raw',auditKeys.publicKey)),issuer:auditIssuer,
     deploymentCommit,now,cryptoImpl:webcrypto});
