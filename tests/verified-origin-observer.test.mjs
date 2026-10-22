@@ -12,15 +12,15 @@ test('independently signed source confirms owner provenance; changed flags fail'
  const event={...scope,eventId:'origin-event-123',sourceId:'origin-source-123',sourceEventAt:now,
   ownerPrincipal:'owner-person-123',approved:true,ownerAuthenticated:true,approvedBeforeExecution:true};
  const signature=b64(await webcrypto.subtle.sign('Ed25519',pair.privateKey,canonicalSignedAuditPayload(issuer,event)));
- const reader=createVerifiedOriginObserver({issuer,publicKey,now,cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event,signature})});
+ const reader=createVerifiedOriginObserver({issuer,publicKey,sourceId:'origin-source-123',now,cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event,signature})});
  assert.equal((await reader(scope)).originAuthenticated,true);
- const forged=createVerifiedOriginObserver({issuer,publicKey,now,cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event:{...event,ownerPrincipal:'different-owner'},signature})});
+ const forged=createVerifiedOriginObserver({issuer,publicKey,sourceId:'origin-source-123',now,cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event:{...event,ownerPrincipal:'different-owner'},signature})});
  assert.equal(await forged(scope),null);
  const old=createVerifiedOriginObserver({issuer,publicKey,now:'2026-10-23T12:00:00Z',cryptoImpl:webcrypto,readOrigin:async()=>({issuer,event,signature})});
  assert.equal(await old(scope),null);
 });
 test('missing pinned credentials and protected tasks fail closed',async()=>{
  assert.equal(await createVerifiedOriginObserver({})(scope),null);
- const reader=createVerifiedOriginObserver({issuer,publicKey:'A'.repeat(43),now,cryptoImpl:webcrypto,readOrigin:async()=>{throw Error('no source')}});
+ const reader=createVerifiedOriginObserver({issuer,sourceId:'origin-source-123',publicKey:'A'.repeat(43),now,cryptoImpl:webcrypto,readOrigin:async()=>{throw Error('no source')}});
  assert.equal(await reader({...scope,taskId:'cert-github-read-20261019-v2'}),null);
 });
