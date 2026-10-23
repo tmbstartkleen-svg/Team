@@ -7,7 +7,7 @@ export default async function handler(req,res){
  const edge=await readEdgeStatus({origin:process.env.TEAM_CLOUDFLARE_PUBLIC_ORIGIN});
  const configured=Boolean(process.env.TEAM_ADMIN_TOKEN&&process.env.OPENAI_API_KEY&&process.env.TEAM_DATABASE_URL);
  return res.status(200).json({
-  ok:true,service:'atlas-team',version:'0.33.0',releaseCommit:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null,executionConfigured:configured,
+  ok:true,service:'atlas-team',version:'0.33.0',releaseCommit:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null,executionConfigured:configured&&process.env.TEAM_MODEL_EXECUTION_ENABLED==='true',
   modelConfigured:Boolean(process.env.OPENAI_API_KEY),accessConfigured:Boolean(process.env.TEAM_ADMIN_TOKEN),
   mode:'approval-gated-server',edge:{ok:edge.ok,source:edge.source||'unconfigured',certified:false,checks:edge.checks||{}},
   environment:process.env.VERCEL_ENV==='production'?'production':process.env.VERCEL_ENV==='preview'?'preview':'unknown',
@@ -15,7 +15,7 @@ export default async function handler(req,res){
   productionOperational:false,
   capabilities:{
    taskRouting:'local',taskApprovals:process.env.TEAM_DATABASE_URL?'server-available-if-schema-ready':'browser-local',
-   modelExecution:configured?'configured-not-verified':'disabled',
+   modelExecution:configured&&process.env.TEAM_MODEL_EXECUTION_ENABLED==='true'?'configured-not-verified':'disabled',
    persistentStorage:Boolean(process.env.TEAM_DATABASE_URL),
    databaseSchemaVerified:false,offlineInference:false,autonomousAgents:false
   },
