@@ -9,7 +9,8 @@
     "db:verify": "node scripts/setup-database.mjs --verify-only",
     "db:setup": "node scripts/setup-database.mjs",
     "db:staging-preflight": "node scripts/check-staging-setup.mjs",
-    "staging:smoke": "node scripts/staging-live-smoke.mjs"
+    "staging:smoke": "node scripts/staging-live-smoke.mjs",
+    "staging:smoke:vercel": "ATLAS_STAGING_TRANSPORT=vercel node scripts/staging-live-smoke.mjs"
   },
   "engines": {
     "node": ">=20"
