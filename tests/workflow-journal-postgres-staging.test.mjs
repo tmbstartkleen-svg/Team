@@ -60,6 +60,25 @@ test('real PostgreSQL workflow journal concurrency and rollback (explicit stagin
       assert.equal(fresh.version,before.version);
       assert.deepEqual(fresh.journal,before.journal);
     } finally {await separate.end()}
+
+    // Idempotent replay must not advance the committed version.
+    const committed=await store.read(id);
+    const applied=updates.find(x=>x.status==='fulfilled');
+    assert.ok(applied);
+    const replayedEvent=applied===updates[0]?update1:update2;
+    const replay=await store.append(id,replayedEvent,{expectedVersion:committed.version});
+    assert.equal(replay.replayed,true);
+    assert.equal(replay.version,committed.version);
+    assert.equal((await store.read(id)).version,committed.version);
+
+    // Invalid attempts must leave the journal unchanged.
+    await assert.rejects(
+      ()=>store.append(id,{...replayedEvent,payload:{stepId:'tampered'}},{expectedVersion:committed.version}),
+      /idempotency_conflict/
+    );
+    const after=await store.read(id);
+    assert.equal(after.version,committed.version);
+    assert.deepEqual(after.journal,committed.journal);
   } finally {
     // Never issue cleanup writes when the database identity preflight failed.
     if (stagingIdentityVerified) {
