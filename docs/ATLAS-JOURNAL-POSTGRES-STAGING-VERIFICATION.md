@@ -14,7 +14,7 @@ Migration `db/workflow-journal-migration.sql` must have been separately reviewed
 - `ATLAS_JOURNAL_STAGING_DATABASE_URL`: isolated staging PostgreSQL DSN; supply through a secret manager, never commit it.
 - `ATLAS_JOURNAL_STAGING_EXPECTED_DATABASE`: exact database name with `staging` in the name (for example `atlas_staging_journal`). The test compares this against PostgreSQL `current_database()` before issuing writes.
 
-Run the single file with `node --test tests/workflow-journal-postgres-staging.test.mjs`. A missing opt-in or identity value **skips** the real-database test; a skipped test is not a successful staging certification. Review the test's outcome and confirm the test actually ran.
+Run the single file with `node --test tests/workflow-journal-postgres-staging.test.mjs`. With all three staging variables absent, the real-database test **skips** (normal CI). If any staging variable is present but the preflight is invalid or incomplete, a separate guard test **fails**. Inspect the test report: a skipped live test is not a successful staging certification. Review the test's outcome and confirm the test actually ran.
 
 ## What the test probes
 
