@@ -2,6 +2,7 @@
 // Safe live ATLAS Preview smoke test. Creates one synthetic task and rejects it;
 // never calls model execution and refuses non-preview deployments.
 import {evaluateStagingRelease} from '../lib/staging-release-evidence.mjs';
+import {evaluateReadOnlyPreflight} from '../lib/staging-readonly-evidence.mjs';
 import {vercelRequest} from '../lib/vercel-staging-transport.mjs';
 const base=(process.env.ATLAS_PREVIEW_URL||'').replace(/\/$/,'');
 const token=process.env.TEAM_ADMIN_TOKEN||'';
@@ -19,22 +20,16 @@ async function request(path,options={}){
 }
 
 const health=await request('/api/health',{method:'GET'});
-if(health.status===401||health.status===403){console.error('Health endpoint returned HTTP '+health.status+'. Request may be blocked by deployment protection. No task writes performed.');process.exit(3)}
-if(health.status!==200||health.body.environment!=='preview'||health.body.productionOperational!==false||health.body.capabilities?.modelExecution!=='disabled'||health.body.stagingDatabase?.connected!==true||health.body.stagingDatabase?.schemaReady!==true){
- console.error('Preflight failed: refusing task writes.',JSON.stringify({status:health.status,environment:health.body.environment,productionOperational:health.body.productionOperational,modelExecution:health.body.capabilities?.modelExecution,databaseConnected:health.body.stagingDatabase?.connected,schemaReady:health.body.stagingDatabase?.schemaReady}));
- process.exit(3);
-}
-// A caller-supplied expected commit prevents writes to a stale or mistaken Preview.
 const expectedCommit=(process.env.ATLAS_EXPECTED_COMMIT||'').trim();
-if(expectedCommit && (!/^[0-9a-f]{12}$/.test(expectedCommit)||health.body.releaseCommit!==expectedCommit)){
- console.error('Preview commit mismatch: refusing task writes.',JSON.stringify({expectedCommit,actualCommit:health.body.releaseCommit||null}));
+const safety=evaluateReadOnlyPreflight({status:health.status,body:health.body},null,expectedCommit);
+if(safety.stage!=='operator-read'){
+ console.error('Staging safety preflight failed: refusing all writes.',JSON.stringify(safety));
  process.exit(3);
 }
-// Verify operator authorization separately from public health before any write.
 const authProbe=await request('/api/tasks',{method:'GET'});
-if(authProbe.status!==200){
- const reason=authProbe.status===401?'ATLAS operator credential rejected; synchronize Preview TEAM_ADMIN_TOKEN with the locally saved token and redeploy the integration branch.':authProbe.status===403?'Preview deployment protection denied the request.':'Unexpected task-list response.';
- console.error('Read-only authorization preflight failed: '+reason,JSON.stringify({status:authProbe.status,error:authProbe.body.error||null}));
+const auth=evaluateReadOnlyPreflight({status:health.status,body:health.body},{status:authProbe.status,body:authProbe.body},expectedCommit);
+if(!auth.ok){
+ console.error('Read-only authorization preflight failed: refusing all writes.',JSON.stringify(auth));
  process.exit(3);
 }
 const title='ATLAS staging smoke '+new Date().toISOString();
