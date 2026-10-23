@@ -13,10 +13,10 @@ export default async function handler(req,res){
  if(!authorize(req))return respond(res,401,{ok:false,error:'unauthorized'});
  if(!String(req.headers['content-type']||'').startsWith('application/json'))return respond(res,415,{ok:false,error:'json_required'});
  // A configured model key is not permission to turn on execution.
- if(process.env.TEAM_MODEL_EXECUTION_ENABLED!=='true')return respond(res,503,{ok:false,error:'model_execution_disabled'});
  if(!process.env.OPENAI_API_KEY)return respond(res,503,{ok:false,error:'model_not_configured'});
  const {taskId}=req.body||{};
  if(typeof taskId!=='string'||!uuid.test(taskId))return respond(res,400,{ok:false,error:'invalid_task_id'});
+ if(process.env.TEAM_MODEL_EXECUTION_ENABLED!=='true')return respond(res,503,{ok:false,error:'model_execution_disabled'});
  const policy=modelPolicy();
  const model=policy.model;
  if(!policy.allowed)return respond(res,503,{ok:false,error:'model_not_allowlisted'});
