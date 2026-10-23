@@ -2,6 +2,7 @@ import {readEdgeStatus} from '../lib/edge-status-relay.mjs';
 import {resolveDatabaseUrl} from '../lib/database-url.mjs';
 import {checkStagingDatabase} from '../lib/staging-db-check.mjs';
 import {readiness} from '../lib/readiness.mjs';
+import {assessAtlasReadiness} from '../lib/operational-release-assessment.mjs';
 export default async function handler(req,res){
  if(req.method!=='GET'){res.setHeader('Allow','GET');return res.status(405).json({ok:false,error:'method_not_allowed'});}
  res.setHeader('Cache-Control','no-store');
@@ -9,7 +10,7 @@ export default async function handler(req,res){
  const edge=await readEdgeStatus({origin:process.env.TEAM_CLOUDFLARE_PUBLIC_ORIGIN});
  const stagingDatabase=await checkStagingDatabase();
  const configured=Boolean(process.env.TEAM_ADMIN_TOKEN&&process.env.OPENAI_API_KEY&&resolveDatabaseUrl(process.env));
- return res.status(200).json({
+ const report={
   ok:true,service:'atlas-team',version:'0.33.0',releaseCommit:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null,executionConfigured:configured&&process.env.TEAM_MODEL_EXECUTION_ENABLED==='true',
   modelConfigured:Boolean(process.env.OPENAI_API_KEY),accessConfigured:Boolean(process.env.TEAM_ADMIN_TOKEN),
   mode:'approval-gated-server',edge:{ok:edge.ok,source:edge.source||'unconfigured',certified:false,checks:edge.checks||{}},
@@ -24,5 +25,6 @@ export default async function handler(req,res){
   },
   releaseChecks:{minimumConfigurationPresent:state.operational,liveWorkflowVerified:false},
   stagingDatabase
- });
+ };
+ return res.status(200).json({...report,operationalAssessment:assessAtlasReadiness(report)});
 }
