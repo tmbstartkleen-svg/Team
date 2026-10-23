@@ -52,7 +52,7 @@ const eventTypes=(events.body.events||[]).filter(x=>x.task_id===taskId||x.taskId
 if(!persisted||persisted.approval!=='rejected'||!eventTypes.includes('task.created')||!eventTypes.includes('task.rejected')){
  console.error('Persistence/audit assertion failed:',JSON.stringify({taskFound:Boolean(persisted),approval:persisted?.approval,eventTypes}));process.exit(8)
 }
-const evidence={ok:true,environment:'preview',taskId,taskStatus:persisted.status,approval:persisted.approval,auditEvents:eventTypes,duplicateDecisionStatus:replay.status,modelExecution:'not called',productionTouched:false};
+const evidence={ok:true,environment:'preview',releaseCommit:health.body.releaseCommit,taskId,taskStatus:persisted.status,approval:persisted.approval,auditEvents:eventTypes,duplicateDecisionStatus:replay.status,modelExecution:'not called',productionTouched:false};
 const certification=evaluateStagingRelease(health.body,evidence);
 if(!certification.ok){console.error('Staging evidence verification incomplete:',JSON.stringify(certification));process.exit(9)}
 console.log(JSON.stringify({...evidence,certification}));
