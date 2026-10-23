@@ -17,7 +17,7 @@ export default async function handler(req,res){
   configuration:{operatorSecretPresent:Boolean(process.env.TEAM_ADMIN_TOKEN),databaseUrlPresent:Boolean(resolveDatabaseUrl(process.env)),modelKeyPresent:Boolean(process.env.OPENAI_API_KEY),modelAllowlistPresent:Boolean((process.env.TEAM_ALLOWED_MODELS||'').trim())},
   productionOperational:false,
   capabilities:{
-   taskRouting:'local',taskApprovals:process.env.TEAM_DATABASE_URL?'server-available-if-schema-ready':'browser-local',
+   taskRouting:'local',taskApprovals:resolveDatabaseUrl(process.env)?'server-available-if-schema-ready':'browser-local',
    modelExecution:configured&&process.env.TEAM_MODEL_EXECUTION_ENABLED==='true'?'configured-not-verified':'disabled',
    persistentStorage:Boolean(resolveDatabaseUrl(process.env)),
    databaseSchemaVerified:stagingDatabase.schemaReady,offlineInference:false,autonomousAgents:false
