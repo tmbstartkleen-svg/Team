@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 const cli=new URL('../scripts/check-staging-setup.mjs',import.meta.url);
 const common={VERCEL_ENV:'preview',TEAM_STAGING_TESTS_ENABLED:'true',
  TEAM_DATABASE_URL:'postgresql://staging@stage.example.invalid/staging',
- TEAM_PRODUCTION_DATABASE_URL:'postgresql://production@prod.example.invalid/production',
+ TEAM_PRODUCTION_DATABASE_HOST:'prod.example.invalid',
  TEAM_STAGING_INSTANCE_ID:'atlas-staging-synthetic-check'};
 function run(changes={}){
  const env={PATH:process.env.PATH,HOME:process.env.HOME,...common,...changes};
@@ -21,7 +21,7 @@ test('preflight is connection-free and never authorizes tasks',()=>{
 });
 test('preflight denies production and missing staging identity',()=>{
  for(const patch of [{VERCEL_ENV:'production'},{TEAM_STAGING_INSTANCE_ID:''},
-  {TEAM_DATABASE_URL:common.TEAM_PRODUCTION_DATABASE_URL},
+  {TEAM_DATABASE_URL:'postgresql://other@prod.example.invalid/production'},
   {TEAM_STAGING_TESTS_ENABLED:'false'}]){
   const x=run(patch);
   assert.equal(x.status,2);
