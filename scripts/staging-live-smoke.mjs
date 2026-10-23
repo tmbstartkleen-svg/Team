@@ -3,16 +3,18 @@
 // never calls model execution and refuses non-preview deployments.
 const base=(process.env.ATLAS_PREVIEW_URL||'').replace(/\/$/,'');
 const token=process.env.TEAM_ADMIN_TOKEN||'';
+const protectionBypass=process.env.VERCEL_AUTOMATION_BYPASS_SECRET||'';
 if(!base||!token){console.error('Set ATLAS_PREVIEW_URL and TEAM_ADMIN_TOKEN.');process.exit(2)}
 let origin;
 try{origin=new URL(base)}catch{console.error('Invalid ATLAS_PREVIEW_URL');process.exit(2)}
 if(origin.protocol!=='https:'||!origin.hostname.endsWith('.vercel.app')){console.error('Refusing non-Vercel HTTPS target');process.exit(2)}
 async function request(path,options={}){
- const response=await fetch(base+path,{...options,headers:{authorization:'Bearer '+token,'content-type':'application/json',...(options.headers||{})},signal:AbortSignal.timeout(8000)});
+ const response=await fetch(base+path,{...options,headers:{authorization:'Bearer '+token,'content-type':'application/json',...(protectionBypass?{'x-vercel-protection-bypass':protectionBypass}:{}),...(options.headers||{})},signal:AbortSignal.timeout(8000)});
  let body={};try{body=await response.json()}catch{}
  return {status:response.status,body};
 }
 const health=await request('/api/health',{method:'GET'});
+if(health.status===401||health.status===403){console.error('Vercel Preview Deployment Protection blocked the request. Configure a Vercel automation bypass secret locally as VERCEL_AUTOMATION_BYPASS_SECRET; this is separate from TEAM_ADMIN_TOKEN. No task writes performed.');process.exit(3)}
 if(health.status!==200||health.body.environment!=='preview'||health.body.productionOperational!==false||health.body.capabilities?.modelExecution!=='disabled'||health.body.stagingDatabase?.connected!==true||health.body.stagingDatabase?.schemaReady!==true){
  console.error('Preflight failed: refusing task writes.',JSON.stringify({status:health.status,environment:health.body.environment,productionOperational:health.body.productionOperational,modelExecution:health.body.capabilities?.modelExecution,databaseConnected:health.body.stagingDatabase?.connected,schemaReady:health.body.stagingDatabase?.schemaReady}));
  process.exit(3);
