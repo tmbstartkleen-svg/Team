@@ -10,6 +10,12 @@ import {validateJournalStagingConfiguration,validateJournalStagingIdentity} from
 
 const config=validateJournalStagingConfiguration(process.env);
 const safe=config.ok;
+const stagingRequested=process.env.ATLAS_JOURNAL_STAGING_TEST!==undefined
+  || process.env.ATLAS_JOURNAL_STAGING_DATABASE_URL!==undefined
+  || process.env.ATLAS_JOURNAL_STAGING_EXPECTED_DATABASE!==undefined;
+test('explicit staging request never silently skips invalid preflight',()=>{
+  if(stagingRequested) assert.equal(config.ok,true,`staging_preflight_failed:${config.reason}`);
+});
 const url=process.env.ATLAS_JOURNAL_STAGING_DATABASE_URL;
 const expectedDb=config.expectedDatabase;
 test('real PostgreSQL workflow journal concurrency and rollback (explicit staging opt-in)', {skip: !safe}, async () => {
