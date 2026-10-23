@@ -45,3 +45,7 @@ unset TEAM_ADMIN_TOKEN
 ```
 
 The smoke script stops before creating a task if either read-only health or authenticated task-list checks fail. It runs the create/reject/audit sequence **only after** both checks pass. The CLI currently supplies the bearer header as a process argument, which can briefly be visible to local process-list tools. Run only on a trusted local Mac account; do not share terminal traces containing arguments. Never run this workflow through GitHub Actions or pull requests with real operator secrets.
+
+## Deployment pinning
+
+For more controlled live verification, optionally set `ATLAS_EXPECTED_COMMIT` to the exact 12-character `releaseCommit` reported by `/api/health`. The smoke script then refuses all task writes when the deployment commit does not match. Always select the current integration Preview URL rather than the main or Production deployment. If this check rejects the target, verify the URL and commit; do not override the safety gate.
