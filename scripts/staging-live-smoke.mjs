@@ -24,6 +24,12 @@ if(health.status!==200||health.body.environment!=='preview'||health.body.product
  console.error('Preflight failed: refusing task writes.',JSON.stringify({status:health.status,environment:health.body.environment,productionOperational:health.body.productionOperational,modelExecution:health.body.capabilities?.modelExecution,databaseConnected:health.body.stagingDatabase?.connected,schemaReady:health.body.stagingDatabase?.schemaReady}));
  process.exit(3);
 }
+// A caller-supplied expected commit prevents writes to a stale or mistaken Preview.
+const expectedCommit=(process.env.ATLAS_EXPECTED_COMMIT||'').trim();
+if(expectedCommit && (!/^[0-9a-f]{12}$/.test(expectedCommit)||health.body.releaseCommit!==expectedCommit)){
+ console.error('Preview commit mismatch: refusing task writes.',JSON.stringify({expectedCommit,actualCommit:health.body.releaseCommit||null}));
+ process.exit(3);
+}
 // Verify operator authorization separately from public health before any write.
 const authProbe=await request('/api/tasks',{method:'GET'});
 if(authProbe.status!==200){
