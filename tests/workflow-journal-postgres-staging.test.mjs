@@ -23,6 +23,7 @@ test('real PostgreSQL workflow journal concurrency and rollback (explicit stagin
   const id=randomBytes(10).toString('hex');
   const store=createWorkflowJournalStore(pool);
   let stagingIdentityVerified=false;
+  let journalRowCreated=false;
   try {
     // Fail closed before any write if the live database identity differs.
     const identity=await pool.query('SELECT current_database() AS database_name, current_user AS role_name');
@@ -39,6 +40,7 @@ test('real PostgreSQL workflow journal concurrency and rollback (explicit stagin
     assert.equal(initial.filter(x=>x.status==='fulfilled').length,1,'only one initial insert succeeds');
     assert.equal(initial.filter(x=>x.status==='rejected').length,1);
     assert.match(String(initial.find(x=>x.status==='rejected').reason),/workflow_version_conflict/);
+    journalRowCreated=true;
 
     const update1={type:'step.planned',idempotencyKey:'plan-a',payload:{stepId:'first'}};
     const update2={type:'step.planned',idempotencyKey:'plan-b',payload:{stepId:'second'}};
@@ -55,8 +57,9 @@ test('real PostgreSQL workflow journal concurrency and rollback (explicit stagin
     try {
       await client.query('BEGIN');
       await client.query('UPDATE atlas_workflow_journals SET version=version+1 WHERE workflow_id=$1',[id]);
-      await client.query('ROLLBACK');
-    } finally {client.release()}
+    } finally {
+      try {await client.query('ROLLBACK')} finally {client.release()}
+    }
     assert.equal((await store.read(id)).version,before.version,'rolled-back write stays invisible');
 
     // New connection: committed journal must still be replayable and identical.
@@ -87,8 +90,11 @@ test('real PostgreSQL workflow journal concurrency and rollback (explicit stagin
     assert.deepEqual(after.journal,committed.journal);
   } finally {
     // Never issue cleanup writes when the database identity preflight failed.
-    if (stagingIdentityVerified) {
-      await pool.query('DELETE FROM atlas_workflow_journals WHERE workflow_id=$1',[id]).catch(()=>{});
+    if (stagingIdentityVerified && journalRowCreated) {
+      const cleaned=await pool.query('DELETE FROM atlas_workflow_journals WHERE workflow_id=$1',[id]);
+      assert.equal(cleaned.rowCount,1,'staging journal cleanup must delete exactly one test row');
+      const remaining=await pool.query('SELECT workflow_id FROM atlas_workflow_journals WHERE workflow_id=$1',[id]);
+      assert.equal(remaining.rowCount,0,'staging journal cleanup must be verified');
     }
     await pool.end();
   }
