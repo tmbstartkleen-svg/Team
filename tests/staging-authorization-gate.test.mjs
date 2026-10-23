@@ -74,3 +74,18 @@ test('every other privileged API rejects missing and incorrect credentials befor
   else process.env.TEAM_ADMIN_TOKEN=original;
  }
 });
+
+test('authorization uses exact bearer token and fails closed for malformed headers', async () => {
+ const original=process.env.TEAM_ADMIN_TOKEN;
+ try {
+  process.env.TEAM_ADMIN_TOKEN='synthetic-staging-key';
+  for(const authorization of ['synthetic-staging-key','Basic synthetic-staging-key','Bearer synthetic-staging-key extra','Bearer synthetic-staging-key ','Bearer','Bearer wrong-key']){
+   const res=response();
+   await tasks({method:'GET',headers:{authorization}},res);
+   assert.equal(res.code,401,authorization);
+  }
+ } finally {
+  if(original===undefined)delete process.env.TEAM_ADMIN_TOKEN;
+  else process.env.TEAM_ADMIN_TOKEN=original;
+ }
+});
