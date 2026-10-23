@@ -18,11 +18,13 @@ test('real PostgreSQL workflow journal concurrency and rollback (explicit stagin
   const pool = new pg.Pool({connectionString:url, max:4, connectionTimeoutMillis:5000});
   const id=randomBytes(10).toString('hex');
   const store=createWorkflowJournalStore(pool);
+  let stagingIdentityVerified=false;
   try {
     // Fail closed before any write if the live database identity differs.
     const identity=await pool.query('SELECT current_database() AS database_name, current_user AS role_name');
     assert.equal(identity.rows[0]?.database_name,expectedDb,'staging database identity mismatch');
     assert.ok(!/prod(uction)?/i.test(identity.rows[0].database_name),'production-like database name rejected');
+    stagingIdentityVerified=true;
     // Fail closed if the table has not been provisioned in authorized staging.
     const inventory=await pool.query("SELECT to_regclass('atlas_workflow_journals') AS name");
     assert.ok(inventory.rows[0].name,'isolated staging journal table must already exist');
@@ -62,7 +64,8 @@ test('real PostgreSQL workflow journal concurrency and rollback (explicit stagin
       assert.deepEqual(fresh.journal,before.journal);
     } finally {await separate.end()}
   } finally {
-    if (pool.totalCount > 0) {
+    // Never issue cleanup writes when the database identity preflight failed.
+    if (stagingIdentityVerified) {
       await pool.query('DELETE FROM atlas_workflow_journals WHERE workflow_id=$1',[id]).catch(()=>{});
     }
     await pool.end();
