@@ -14,9 +14,16 @@ async function request(path,options={}){
  return {status:response.status,body};
 }
 const health=await request('/api/health',{method:'GET'});
-if(health.status===401||health.status===403){console.error('Vercel Preview Deployment Protection blocked the request. Configure a Vercel automation bypass secret locally as VERCEL_AUTOMATION_BYPASS_SECRET; this is separate from TEAM_ADMIN_TOKEN. No task writes performed.');process.exit(3)}
+if(health.status===401||health.status===403){console.error('Health endpoint returned HTTP '+health.status+'. Request may be blocked by deployment protection. No task writes performed.');process.exit(3)}
 if(health.status!==200||health.body.environment!=='preview'||health.body.productionOperational!==false||health.body.capabilities?.modelExecution!=='disabled'||health.body.stagingDatabase?.connected!==true||health.body.stagingDatabase?.schemaReady!==true){
  console.error('Preflight failed: refusing task writes.',JSON.stringify({status:health.status,environment:health.body.environment,productionOperational:health.body.productionOperational,modelExecution:health.body.capabilities?.modelExecution,databaseConnected:health.body.stagingDatabase?.connected,schemaReady:health.body.stagingDatabase?.schemaReady}));
+ process.exit(3);
+}
+// Verify operator authorization separately from public health before any write.
+const authProbe=await request('/api/tasks',{method:'GET'});
+if(authProbe.status!==200){
+ const reason=authProbe.status===401?'ATLAS operator credential rejected; synchronize Preview TEAM_ADMIN_TOKEN with the locally saved token and redeploy the integration branch.':authProbe.status===403?'Preview deployment protection denied the request.':'Unexpected task-list response.';
+ console.error('Read-only authorization preflight failed: '+reason,JSON.stringify({status:authProbe.status,error:authProbe.body.error||null}));
  process.exit(3);
 }
 const title='ATLAS staging smoke '+new Date().toISOString();
