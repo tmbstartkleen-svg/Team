@@ -2,18 +2,22 @@
 // Safe live ATLAS Preview smoke test. Creates one synthetic task and rejects it;
 // never calls model execution and refuses non-preview deployments.
 import {evaluateStagingRelease} from '../lib/staging-release-evidence.mjs';
+import {vercelRequest} from '../lib/vercel-staging-transport.mjs';
 const base=(process.env.ATLAS_PREVIEW_URL||'').replace(/\/$/,'');
 const token=process.env.TEAM_ADMIN_TOKEN||'';
 const protectionBypass=process.env.VERCEL_AUTOMATION_BYPASS_SECRET||'';
+const cliMode=process.env.ATLAS_STAGING_TRANSPORT==='vercel';
 if(!base||!token){console.error('Set ATLAS_PREVIEW_URL and TEAM_ADMIN_TOKEN.');process.exit(2)}
 let origin;
 try{origin=new URL(base)}catch{console.error('Invalid ATLAS_PREVIEW_URL');process.exit(2)}
 if(origin.protocol!=='https:'||!origin.hostname.endsWith('.vercel.app')){console.error('Refusing non-Vercel HTTPS target');process.exit(2)}
 async function request(path,options={}){
+ if(cliMode) return vercelRequest({base,path,method:options.method||'GET',body:options.body,token});
  const response=await fetch(base+path,{...options,headers:{authorization:'Bearer '+token,'content-type':'application/json',...(protectionBypass?{'x-vercel-protection-bypass':protectionBypass}:{}),...(options.headers||{})},signal:AbortSignal.timeout(8000)});
  let body={};try{body=await response.json()}catch{}
  return {status:response.status,body};
 }
+
 const health=await request('/api/health',{method:'GET'});
 if(health.status===401||health.status===403){console.error('Health endpoint returned HTTP '+health.status+'. Request may be blocked by deployment protection. No task writes performed.');process.exit(3)}
 if(health.status!==200||health.body.environment!=='preview'||health.body.productionOperational!==false||health.body.capabilities?.modelExecution!=='disabled'||health.body.stagingDatabase?.connected!==true||health.body.stagingDatabase?.schemaReady!==true){
