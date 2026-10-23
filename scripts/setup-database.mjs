@@ -5,8 +5,14 @@ import {checkStagingIsolation} from '../lib/staging-isolation-preflight.mjs';
 const url=process.env.TEAM_DATABASE_URL;
 const verifyOnly=process.argv.includes('--verify-only');
 const stagingGuard=checkStagingIsolation(process.env);
+// Hostname comparison is preliminary; it cannot authorize schema writes.
+// Await independent provider verification wired to an authenticated control plane.
+const independentlyVerifiedStaging=false;
 // Even read-only verification must not contact an unidentified database from preview.
-if(process.env.VERCEL_ENV==='preview'&&stagingGuard.safe!==true){
+if(!verifyOnly&&!independentlyVerifiedStaging){
+ console.error('Schema application blocked: independent staging provider verification unavailable');
+ process.exitCode=5;
+}else if(process.env.VERCEL_ENV==='preview'&&stagingGuard.safe!==true){
  console.error('Staging database access blocked: isolation preflight failed');
  process.exitCode=5;
 }else if(!verifyOnly&&(process.env.TEAM_STAGING_SCHEMA_APPLY_APPROVED!=='true'||stagingGuard.safe!==true)){
