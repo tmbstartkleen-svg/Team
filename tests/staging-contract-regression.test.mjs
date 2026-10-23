@@ -16,8 +16,8 @@ test('task creation is authenticated and transactionally audit-logged',()=>{
 test('task approvals require auth, pending task, and audit event',()=>{
  const s=read('api/approve.js');
  assert.match(s,/authorize\(req\)/);
- assert.match(s,/approval=\\'pending\\'/);
- assert.match(s,/status=\\'queued\\'/);
+ assert.match(s,/approval='pending'/);
+ assert.match(s,/status='queued'/);
  assert.match(s,/INSERT INTO team_events/);
  assert.match(s,/await client.query\('ROLLBACK'\)/);
 });
