@@ -28,3 +28,20 @@ The test is a manual live smoke test. CI's mock-backed tests do not count as pro
 ## Protected Preview and operator-token troubleshooting
 
 A Vercel SSO redirect (often HTTP 302) is deployment protection, not an ATLAS operator-token failure. Use the authenticated Vercel CLI `vercel curl` to verify the health endpoint. If it returns HTTP 200 for `/api/health` but HTTP 401 for `/api/tasks` with the operator bearer header, Vercel protection was passed and the **Preview TEAM_ADMIN_TOKEN value** is not matching the caller's token. Correct the value without logging or copying secrets into GitHub. Changing a Preview environment variable requires a **new Preview deployment from this integration branch**; redeploying `main` does not update the integration Preview. Never disable Vercel deployment protection, and never allow model execution merely to make the smoke test pass.
+
+## Vercel-authenticated CLI mode (protected previews)
+
+For a Vercel Preview protected by SSO, use `npm run staging:smoke:vercel` instead of the direct HTTP variant. The CLI must already be logged in (`npx vercel@65.2.0 login`). First synchronize the Preview-only `TEAM_ADMIN_TOKEN` in Vercel with the private operator token in your own Mac Keychain and redeploy the **integration** branch. HTTP 401 from authenticated `GET /api/tasks` means the tokens still do not match. Do not weaken API authorization to make a test pass.
+
+On macOS, from the Team checkout, use the Keychain entry without printing it:
+
+```sh
+cd "$HOME/Team"
+git pull --ff-only
+export ATLAS_PREVIEW_URL="https://<correct-integration-preview>.vercel.app"
+export TEAM_ADMIN_TOKEN="$(security find-generic-password -a "$USER" -s atlas-team-preview-admin-token -w)"
+npm run staging:smoke:vercel
+unset TEAM_ADMIN_TOKEN
+```
+
+The smoke script stops before creating a task if either read-only health or authenticated task-list checks fail. It runs the create/reject/audit sequence **only after** both checks pass. The CLI currently supplies the bearer header as a process argument, which can briefly be visible to local process-list tools. Run only on a trusted local Mac account; do not share terminal traces containing arguments. Never run this workflow through GitHub Actions or pull requests with real operator secrets.
