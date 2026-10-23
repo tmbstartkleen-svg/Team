@@ -22,3 +22,46 @@ jobs:
           name: team-production-readiness
           path: artifacts/production-readiness.*
           if-no-files-found: warn
+
+  postgres-journal-integration:
+    name: Isolated PostgreSQL journal integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: atlas_ci
+          POSTGRES_PASSWORD: atlas_ci_ephemeral
+          POSTGRES_DB: atlas_staging_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas_ci -d atlas_staging_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      ATLAS_JOURNAL_STAGING_TEST: I_AUTHORIZE_STAGING_WRITES
+      ATLAS_JOURNAL_STAGING_EXPECTED_DATABASE: atlas_staging_ci
+      ATLAS_JOURNAL_STAGING_DATABASE_URL: postgresql://atlas_ci:atlas_ci_ephemeral@localhost:5432/atlas_staging_ci
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - name: Provision disposable CI-only journal schema
+        run: |
+          node --input-type=module -e "
+          import pg from 'pg';
+          import { readFileSync } from 'node:fs';
+          const db = new pg.Client({ connectionString: process.env.ATLAS_JOURNAL_STAGING_DATABASE_URL });
+          await db.connect();
+          try {
+            const identity = await db.query('SELECT current_database() AS name');
+            if (identity.rows[0].name !== 'atlas_staging_ci') throw Error('wrong_database');
+            await db.query(readFileSync('db/workflow-journal-migration.sql', 'utf8'));
+          } finally { await db.end(); }
+          "
+      - name: Test real PostgreSQL concurrency, rollback, recovery and idempotency
+        run: node --test tests/workflow-journal-postgres-staging.test.mjs
