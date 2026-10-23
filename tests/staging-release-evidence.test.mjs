@@ -7,7 +7,7 @@ const health = {
  stagingDatabase:{enabled:true,connected:true,schemaReady:true,tables:{projects:true,tasks:true,events:true}},
  capabilities:{modelExecution:'disabled'}, executionConfigured:false
 };
-const evidence = {ok:true,environment:'preview',taskId:'synthetic-id',approval:'rejected',
+const evidence = {ok:true,environment:'preview',taskId:'11111111-1111-4111-8111-111111111111',taskStatus:'queued',approval:'rejected',
  duplicateDecisionStatus:409,modelExecution:'not called',productionTouched:false,
  auditEvents:['task.created','task.rejected']};
 test('healthy preview without live persistence proof is not certified', () => {
@@ -33,7 +33,8 @@ test('production or model execution cannot pass staging evidence', () => {
 test('missing audit event or rejected task evidence fails closed', () => {
  for(const e of [{...evidence,auditEvents:['task.created']},{...evidence,approval:'approved'},
   {...evidence,duplicateDecisionStatus:200},{...evidence,modelExecution:'called'},
-  {...evidence,productionTouched:true}]){
+  {...evidence,productionTouched:true},{...evidence,taskStatus:'running'},
+  {...evidence,taskId:'not-a-task-id'},{...evidence,auditEvents:['task.created','task.created','task.rejected']}]){
   assert.equal(evaluateStagingRelease(health,e).ok,false);
  }
 });
