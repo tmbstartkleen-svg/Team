@@ -23,3 +23,15 @@ test('preview verify-only refuses unknown database before connecting',()=>{
  assert.equal(result.status,5);
  assert.match(result.stderr,/Staging database access blocked/);
 });
+
+test('even matching preliminary staging config and write opt-in cannot apply schema',()=>{
+ const result=run({
+  VERCEL_ENV:'preview',TEAM_STAGING_TESTS_ENABLED:'true',
+  TEAM_STAGING_SCHEMA_APPLY_APPROVED:'true',
+  TEAM_DATABASE_URL:'postgresql://stage@stage.example.invalid/atlas_stage',
+  TEAM_PRODUCTION_DATABASE_HOST:'production.example.invalid',
+  TEAM_STAGING_INSTANCE_ID:'atlas-staging-synthetic-20261022'
+ });
+ assert.equal(result.status,5);
+ assert.match(result.stderr,/independent staging provider verification unavailable/);
+});
