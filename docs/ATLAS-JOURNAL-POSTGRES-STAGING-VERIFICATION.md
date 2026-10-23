@@ -29,3 +29,11 @@ Run the single file with `node --test tests/workflow-journal-postgres-staging.te
 Database-name checks are safeguards, **not** proof that the hostname, identity, tenant, and privileges are staging-only. Independently verify the connection target and least-privilege grants before providing the opt-in. The suite does not currently prove network interruption behavior, process crash recovery, tenant authorization, owner grants, or actual autonomous agent execution. Store redacted evidence of test run ID, UTC timestamp, commit SHA, isolated database identity, expected-versus-observed result, reviewer, and cleanup status. Never store DSNs, tokens, or unredacted logs in the issue/PR.
 
 Issue #91 remains BLOCKED until its separate operational acceptance criteria and owner signoff are met. This test never authorizes a production migration, public endpoint, executor activation, protected task execution, PR merge, or deployment.
+
+## Verified disposable PostgreSQL CI evidence (not deployed staging)
+
+- GitHub Actions TEAM verification #827: https://github.com/tmbstartkleen-svg/Team/actions/runs/40027180224
+- Commit: `7a0173a77a39381237fc9e45a418d63c4ae1f584`.
+- Both `check` and `Isolated PostgreSQL journal integration` jobs completed successfully, including disposable CI schema provisioning and the real PostgreSQL journal concurrency/rollback/recovery/idempotency test step.
+- Evidence class: **disposable CI PostgreSQL only**; do not mark deployed staging, owner approval, live agent certification, or production ready. No external staging secret, protected task, or production database was used.
+- Next gate: independent review of the job logs and test assertion counts, then separately authorized isolated deployed staging validation, identity and least-privilege review.
