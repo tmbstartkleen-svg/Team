@@ -9,12 +9,20 @@ import {createWorkflowJournalStore} from '../lib/workflow-journal-store.mjs';
 
 const enabled = process.env.ATLAS_JOURNAL_STAGING_TEST === 'I_AUTHORIZE_STAGING_WRITES';
 const url = process.env.ATLAS_JOURNAL_STAGING_DATABASE_URL;
-const safe = enabled && typeof url === 'string' && url.length > 0;
+const expectedDb = process.env.ATLAS_JOURNAL_STAGING_EXPECTED_DATABASE;
+const safe = enabled && typeof url === 'string' && url.length > 0
+  && typeof expectedDb === 'string' && /^[a-z0-9_]*staging[a-z0-9_]*$/i.test(expectedDb);
+// An explicit, staging-named database identity is required. A configured URL alone
+// cannot attest environment identity; check current_database() before any writes.
 test('real PostgreSQL workflow journal concurrency and rollback (explicit staging opt-in)', {skip: !safe}, async () => {
   const pool = new pg.Pool({connectionString:url, max:4, connectionTimeoutMillis:5000});
   const id=randomBytes(10).toString('hex');
   const store=createWorkflowJournalStore(pool);
   try {
+    // Fail closed before any write if the live database identity differs.
+    const identity=await pool.query('SELECT current_database() AS database_name, current_user AS role_name');
+    assert.equal(identity.rows[0]?.database_name,expectedDb,'staging database identity mismatch');
+    assert.ok(!/prod(uction)?/i.test(identity.rows[0].database_name),'production-like database name rejected');
     // Fail closed if the table has not been provisioned in authorized staging.
     const inventory=await pool.query("SELECT to_regclass('atlas_workflow_journals') AS name");
     assert.ok(inventory.rows[0].name,'isolated staging journal table must already exist');
