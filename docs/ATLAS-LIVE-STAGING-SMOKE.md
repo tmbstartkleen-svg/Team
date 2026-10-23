@@ -49,3 +49,7 @@ The smoke script stops before creating a task if either read-only health or auth
 ## Deployment pinning
 
 For more controlled live verification, optionally set `ATLAS_EXPECTED_COMMIT` to the exact 12-character `releaseCommit` reported by `/api/health`. The smoke script then refuses all task writes when the deployment commit does not match. Always select the current integration Preview URL rather than the main or Production deployment. If this check rejects the target, verify the URL and commit; do not override the safety gate.
+
+## Read-only CLI credential preflight
+
+To diagnose credentials without creating a synthetic task, use `npm run staging:preflight:vercel` after setting `ATLAS_PREVIEW_URL` to the correct integration Preview and loading `TEAM_ADMIN_TOKEN` privately. It calls only `GET /api/health` and `GET /api/tasks` through Vercel CLI authentication and prints a status, commit, and non-secret failure code. `taskWrites` remains zero. A failure marked `operator_token_mismatch` requires synchronization of the user's Preview-only token; GitHub CI alone cannot repair the private credential. Only after this preflight passes should the write-capable smoke test be considered.
