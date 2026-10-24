@@ -254,6 +254,33 @@ jobs:
             node -e 'const x=require("/tmp/team-project-denial.json");if(x.error!=="unauthorized")process.exit(1)'
           done
           echo 'Anonymous project listing and creation correctly denied.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify final Cloudflare deployment after secret updates
+        if: steps.credentials.outputs.ready == 'true' && success()
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -eu
+          curl --fail --silent --show-error --retry 3 -H "Authorization: Bearer $CF_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/scripts/atlas-team/deployments" > /tmp/atlas-final-deployments.json
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const response=JSON.parse(fs.readFileSync('/tmp/atlas-final-deployments.json','utf8'));
+          const items=response.result?.deployments;
+          if(response.success!==true||!Array.isArray(items)||items.length<1)throw Error('final_deployment_unavailable');
+          // Cloudflare pagination/order is not itself proof of newest deployment.
+          // Reject unsorted/ambiguous inventories instead of silently trusting index zero.
+          const dates=items.map(x=>Date.parse(x.created_on));
+          if(dates.some(x=>!Number.isFinite(x))||dates.some((x,i)=>i>0&&x>=dates[i-1]))
+            throw Error('final_deployment_order_untrusted');
+          const latest=items[0];
+          const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if(!uuid.test(latest.id||'')||!Array.isArray(latest.versions)||latest.versions.length!==1
+            ||latest.versions[0]?.percentage!==100||!uuid.test(latest.versions[0]?.version_id||''))
+            throw Error('final_deployment_ambiguous');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '\nFinal deployment ID: '+latest.id+'\nFinal version ID: '+latest.versions[0].version_id+
+            '\nFinal deployment observed after secret writes; commit and bundle provenance NOT certified.\n');
+          NODE
       - name: Report Cloudflare publication
         if: steps.credentials.outputs.ready == 'true' && success()
         run: |

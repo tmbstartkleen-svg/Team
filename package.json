@@ -7,7 +7,11 @@
     "test": "node --test tests/*.test.mjs",
     "check": "node --check lib/route.mjs && node --check lib/database.mjs && node --check lib/server-auth.mjs && node --check api/tasks.js && node --check api/approve.js && node --check api/events.js && node --check api/execute-approved.js && node --check api/model-policy.js && node --test tests/*.test.mjs",
     "db:verify": "node scripts/setup-database.mjs --verify-only",
-    "db:setup": "node scripts/setup-database.mjs"
+    "db:setup": "node scripts/setup-database.mjs",
+    "db:staging-preflight": "node scripts/check-staging-setup.mjs",
+    "staging:smoke": "node scripts/staging-live-smoke.mjs",
+    "staging:smoke:vercel": "ATLAS_STAGING_TRANSPORT=vercel node scripts/staging-live-smoke.mjs",
+    "staging:preflight:vercel": "node scripts/staging-preview-readonly.mjs"
   },
   "engines": {
     "node": ">=20"

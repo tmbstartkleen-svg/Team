@@ -8,8 +8,8 @@ function mock(method='POST'){
  const res={setHeader(){},status(x){out.status=x;return this},json(x){out.body=x;return this}};
  return {req,res,out};
 }
-test('health reports capability readiness without secrets',()=>{const x=mock('GET');health(x.req,x.res);assert.equal(x.out.status,200);assert.equal(typeof x.out.body.executionConfigured,'boolean')});
+test('health reports capability readiness without secrets',async()=>{const x=mock('GET');await health(x.req,x.res);assert.equal(x.out.status,200);assert.equal(typeof x.out.body.executionConfigured,'boolean')});
 test('approved execution blocks anonymous callers',async()=>{const x=mock('POST');await approved(x.req,x.res);assert.equal(x.out.status,401)});
 test('provider model is allowlist constrained',()=>{assert.equal(modelPolicy({TEAM_MODEL:'unsupported',TEAM_ALLOWED_MODELS:'approved'}).allowed,false)});
 
-test('health does not claim production operational without live verification',()=>{const x=mock('GET');health(x.req,x.res);assert.equal(x.out.body.productionOperational,false);assert.equal(x.out.body.releaseChecks.liveWorkflowVerified,false);assert.equal(x.out.body.version,'0.33.0');assert.ok(x.out.body.releaseCommit===null||/^[0-9a-f]{1,12}$/i.test(x.out.body.releaseCommit))});
+test('health does not claim production operational without live verification',async()=>{const x=mock('GET');await health(x.req,x.res);assert.equal(x.out.body.productionOperational,false);assert.equal(x.out.body.releaseChecks.liveWorkflowVerified,false);assert.equal(x.out.body.version,'0.33.0');assert.ok(x.out.body.releaseCommit===null||/^[0-9a-f]{1,12}$/i.test(x.out.body.releaseCommit))});

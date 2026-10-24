@@ -6,7 +6,7 @@ import execute from '../api/execute-approved.js';
 const TASK='00000000-0000-4000-8000-000000000001';
 function mockResponse(){const out={status:200,body:null};const res={setHeader(){},status(n){out.status=n;return res},json(b){out.body=b;return res}};return {res,out}}
 async function runScenario({provider='success',approved=true,initialStatus='queued'}={}){
- const oldEnv=Object.fromEntries(['TEAM_ADMIN_TOKEN','OPENAI_API_KEY','TEAM_DATABASE_URL','TEAM_MODEL','TEAM_ALLOWED_MODELS'].map(k=>[k,process.env[k]]));
+ const oldEnv=Object.fromEntries(['TEAM_ADMIN_TOKEN','OPENAI_API_KEY','TEAM_DATABASE_URL','TEAM_MODEL','TEAM_ALLOWED_MODELS','TEAM_MODEL_EXECUTION_ENABLED'].map(k=>[k,process.env[k]]));
  const oldConnect=pg.Pool.prototype.connect,oldFetch=globalThis.fetch;
  const state={status:initialStatus,approval:approved?'approved':'pending',events:[],providerCalls:0,transactions:[]};
  pg.Pool.prototype.connect=async function(){
@@ -25,6 +25,7 @@ async function runScenario({provider='success',approved=true,initialStatus='queu
  process.env.TEAM_DATABASE_URL='postgresql://test:pass@localhost:5432/team';
  process.env.TEAM_MODEL='gpt-5-mini';
  process.env.TEAM_ALLOWED_MODELS='gpt-5-mini';
+ process.env.TEAM_MODEL_EXECUTION_ENABLED='true';
  const {res,out}=mockResponse();
  try{await execute({method:'POST',headers:{authorization:'Bearer test-operator','content-type':'application/json'},body:{taskId:TASK}},res);return {out,state}}
  finally{pg.Pool.prototype.connect=oldConnect;globalThis.fetch=oldFetch;for(const [k,v] of Object.entries(oldEnv)){if(v===undefined)delete process.env[k];else process.env[k]=v}}
