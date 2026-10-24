@@ -48,14 +48,36 @@ jobs:
           if (!/^[0-9a-fA-F-]{36}$/.test(id || '')) throw new Error('staging_database_id_invalid');
           let config = source.replace(/^name = "atlas-team"$/m, 'name = "atlas-team-staging"');
           config = config.replace(/^TEAM_GITHUB_CERTIFICATION_TASK_ID = .*\n/m, '');
-          config = config.replace(/^TEAM_GITHUB_READ_REPOSITORIES = .*\n/m, '');
+          config = config.replace(/^TEAM_GITHUB_READ_REPOSITORIES = .*$/m, 'TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"');
           config = config.replace(/^TEAM_API_ORIGIN = .*$/m, 'TEAM_API_ORIGIN = "https://team-mmy8kteq3-tmbstartkleen-4716s-projects.vercel.app"');
           config = config.replace(/^TEAM_INFERENCE_PROVIDER = .*$/m, 'TEAM_INFERENCE_PROVIDER = "cloudflare"\nATLAS_RUNTIME_ENV = "staging"\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_RELEASED = "false"');
           config += '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-staging"\ndatabase_id = "' + id + '"\n';
+          const required = [
+            'name = "atlas-team-staging"',
+            'ATLAS_RUNTIME_ENV = "staging"',
+            'TEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"',
+            'TEAM_TOOL_EXECUTOR_ENABLED = "false"',
+            'TEAM_TOOL_EXECUTOR_RELEASED = "false"',
+            'TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"',
+            'database_id = "' + id + '"'
+          ];
+          for (const expected of required) {
+            if (!config.includes(expected)) throw new Error('staging_config_invariant_failed');
+          }
+          if (/^name = "atlas-team"$/m.test(config)) throw new Error('production_worker_name_forbidden');
+          if (/^TEAM_GITHUB_CERTIFICATION_TASK_ID\s*=/m.test(config)) throw new Error('historical_certification_id_forbidden');
+          if (config.includes('65bf7866-bc96-400c-bb6f-ead8dfb8e02f')) throw new Error('production_d1_binding_forbidden');
           fs.writeFileSync('wrangler.staging.toml', config);
           NODE
           mkdir -p public
           cp index.html public/index.html
+      - name: Reject unverified staging schema or wrong database identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 execute atlas-team-staging --remote --config wrangler.staging.toml --command "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('team_tasks','team_tool_step_grants','team_tool_action_ledger','team_execution_receipts');"
       - name: Validate staging bundle without publishing
         run: npx --yes wrangler@4 deploy --config wrangler.staging.toml --dry-run --outdir /tmp/atlas-team-staging-bundle
       - name: Verify existing staging schema without applying restricted migrations
