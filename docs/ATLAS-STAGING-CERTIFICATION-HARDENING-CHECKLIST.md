@@ -12,7 +12,9 @@ This checklist tracks implementation and evidence. It is not an approval or a li
 - [x] Negative tests cover default-off behavior, production rejection, executor-release flags, bad grants, missing dependencies, malformed payloads, and receipt failure.
 - [x] Durable runner tests cover reservation-before-provider, receipt persistence, and replay denial.
 - [ ] Latest draft branch head has a green application and isolated PostgreSQL CI run.
+- Current CI history is not green at the latest verified run: #849 failed on the negative-test matrix; #847 passed earlier route/auth tests. Do not infer newer commits passed without a run tied to their exact SHA.
 - [ ] Live route deployment SHA matches the CI-tested draft branch head.
+- [ ] Negative-matrix content-type test expects the implemented JSON-only guard response (HTTP 415 / `json_required`); verify the assertion is present on the PR head before rerunning CI.
 
 ## Live certification gates
 - [ ] Staging-only credentials and flags are independently reviewed; general executor remains disabled.
