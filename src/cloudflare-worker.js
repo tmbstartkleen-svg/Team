@@ -2,6 +2,7 @@ export {CertificationLedger} from '../lib/certification-durable-ledger.mjs';
 import {githubReadConnectivityPreflight} from '../lib/github-read-connectivity-preflight.mjs';
 import {inspectCertificationLedger} from '../lib/certification-ledger-inspection-api.mjs';
 import {handleOneShotGitHubCertification} from '../lib/one-shot-github-certification.mjs';
+import {handleStagingGitHubCertification} from '../lib/staging-github-certification-api.mjs';
 import {handleOwnerGitHubGrant} from '../lib/owner-github-grant-api.mjs';
 import {githubToolReadiness} from '../lib/github-tool-readiness.mjs';
 import {handleOwnerWorkspace} from '../lib/owner-workspace-api.mjs';
@@ -47,6 +48,7 @@ export default {
   if(url.pathname==='/api/owner-approval')return handleOwnerApproval(request,env);
   if(url.pathname==='/api/internal-executor-run')return handleExecutorRun(request,env);
   if(url.pathname==='/api/internal-github-certification')return handleOneShotGitHubCertification(request,env);
+  if(url.pathname==='/api/internal-staging-github-certification')return handleStagingGitHubCertification(request,env);
   if(url.pathname==='/api/internal-tool-read'){
    // Service-authenticated endpoint; production flags default closed.
    // No write adapter is registered. Credentials are never returned to callers.
