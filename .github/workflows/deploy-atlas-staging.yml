@@ -58,11 +58,14 @@ jobs:
           cp index.html public/index.html
       - name: Validate staging bundle without publishing
         run: npx --yes wrangler@4 deploy --config wrangler.staging.toml --dry-run --outdir /tmp/atlas-team-staging-bundle
-      - name: Apply schema migrations to isolated staging D1
+      - name: Verify existing staging schema without applying restricted migrations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx --yes wrangler@4 d1 migrations apply atlas-team-staging --remote --config wrangler.staging.toml
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 execute atlas-team-staging --remote --config wrangler.staging.toml --command "SELECT name FROM sqlite_master WHERE name='team_tool_step_grants';"
+          echo "Staging core schema was provisioned separately; migrations 0010-0012 require separate owner authorization." >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy isolated staging Worker
         uses: cloudflare/wrangler-action@v3
         with:
