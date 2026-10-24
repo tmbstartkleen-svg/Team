@@ -4,7 +4,7 @@ import {handleStagingGitHubCertification} from '../lib/staging-github-certificat
 const url='https://atlas-team.example/api/internal-staging-github-certification';
 const token='staging-executor-token-long-enough';
 const body={taskId:'staging-cert-task-20261024-a1',stepId:'staging-cert-step-20261024-a1'};
-const approvedGrant={ownerApproved:true,step:{persona:'release-review',tool:'github.read',capability:'read',target:{owner:'tmbstartkleen-svg',repo:'Team',resource:'repository'},idempotencyKey:'staging-cert-once-20261024'},approval:{taskApproved:true,allowedTools:['github.read'],grantedCapabilities:['read'],confirmation:false}};
+const approvedGrantRow={task_id:body.taskId,step_id:body.stepId,persona:'release-review',tool:'github.read',capability:'read',target_json:JSON.stringify({owner:'tmbstartkleen-svg',repo:'Team',resource:'repository'}),idempotency_key:'staging-cert-once-20261024',confirmation:0,owner_approved:1,state:'queued',assigned_persona:'release-review'};
 const req=(b=body)=>new Request(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(b)});
 function baseEnv(extra={}){return {TEAM_EXECUTOR_TOKEN:token,ATLAS_RUNTIME_ENV:'staging',TEAM_STAGING_GITHUB_CERTIFICATION_ENABLED:'true',TEAM_STAGING_GITHUB_CERTIFICATION_TASK_ID:body.taskId,TEAM_TOOL_EXECUTOR_ENABLED:'false',TEAM_TOOL_EXECUTOR_RELEASED:'false',TEAM_DB:{prepare(){return {bind(){return {first:async()=>null}}}}},...extra}}
 test('missing persisted owner approval blocks before provider and ledger',async()=>{
@@ -16,7 +16,7 @@ test('missing persisted owner approval blocks before provider and ledger',async(
 test('valid persisted grant invokes only the injected durable executor and returns its durable receipt',async()=>{
  let executed=null,fetches=0,ledgerId=null;
  const env=baseEnv({
-  TEAM_DB:{prepare(sql){assert.match(sql,/FROM team_tool_step_grants/);return {bind(taskId,stepId){assert.equal(taskId,body.taskId);assert.equal(stepId,body.stepId);return {first:async()=>approvedGrant}}}}},
+  TEAM_DB:{prepare(sql){assert.match(sql,/FROM team_tool_step_grants/);return {bind(taskId,stepId){assert.equal(taskId,body.taskId);assert.equal(stepId,body.stepId);return {first:async()=>approvedGrantRow}}}}},
   TEAM_GITHUB_READ_TOKEN:'synthetic-test-github-token',
   TEAM_CERT_LEDGER:{idFromName(id){ledgerId=id;return id},get(id){assert.equal(id,body.taskId);return {reserve(){return {reserved:true}},record(){return {recorded:true}}}}}
  });
