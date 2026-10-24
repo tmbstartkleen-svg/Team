@@ -34,7 +34,7 @@ jobs:
           set -eu
           test -n "$CF_API_TOKEN" || { echo "::error::Missing Cloudflare deployment credential"; exit 1; }
           printf '%s' "$CF_ACCOUNT_ID" | grep -Eq '^[0-9a-fA-F-]{36}$' || { echo "::error::Invalid Cloudflare account ID"; exit 1; }
-          printf '%s' "$STAGING_D1_ID" | grep -Eq '^[0-9a-fA-F-]{36}
+          printf '%s' "$STAGING_D1_ID" | grep -Eq '^[0-9a-fA-F-]{36}$' || { echo "::error::Invalid isolated staging D1 ID"; exit 1; }
       - name: Generate isolated staging Worker configuration
         env:
           STAGING_D1_ID: 953289d7-463f-4ba0-aa26-eca0ab2076d4
