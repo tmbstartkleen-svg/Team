@@ -49,7 +49,6 @@ jobs:
           config=config.replace(/^TEAM_GITHUB_READ_REPOSITORIES = .*\n/m,'');
           config=config.replace(/^TEAM_API_ORIGIN = .*$/m,'TEAM_API_ORIGIN = "https://team-mmy8kteq3-tmbstartkleen-4716s-projects.vercel.app"');
           config=config.replace(/^TEAM_INFERENCE_PROVIDER = .*$/m,'TEAM_INFERENCE_PROVIDER = "cloudflare"\nATLAS_RUNTIME_ENV = "staging"\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_RELEASED = "false"');
-          config=config.replace(/^\[\[d1_databases\]\][\s\S]*?(?=^\[\[|^\[|\s*$)/m,'');
           config += '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-staging"\ndatabase_id = "'+id+'"\n';
           fs.writeFileSync('wrangler.staging.toml',config);
           NODE
