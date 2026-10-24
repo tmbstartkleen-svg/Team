@@ -73,9 +73,8 @@ test('malformed, oversized, and extra-field requests are rejected',async()=>{
  const huge=await handleStagingGitHubCertification(request({}, {raw:' '.repeat(300)}),e,{execute:noExecute});
  assert.equal(huge.status,413);
  const wrongType=await handleStagingGitHubCertification(request(payload,{contentType:'text/plain'}),e,{execute:noExecute});
- // The route currently does not reject content-type; the injected executor fails, and the route must sanitize that failure.
- assert.equal(wrongType.status,502);
- assert.equal((await wrongType.json()).error,'staging_certification_failed');
+ assert.equal(wrongType.status,415);
+ assert.equal((await wrongType.json()).error,'json_required');
 });
 test('durable executor errors are sanitized and cannot claim successful certification',async()=>{
  const e=env();
