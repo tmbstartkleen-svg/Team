@@ -9,7 +9,7 @@ const req=(b=body)=>new Request(url,{method:'POST',headers:{authorization:'Beare
 function baseEnv(extra={}){return {TEAM_EXECUTOR_TOKEN:token,ATLAS_RUNTIME_ENV:'staging',TEAM_STAGING_GITHUB_CERTIFICATION_ENABLED:'true',TEAM_STAGING_GITHUB_CERTIFICATION_TASK_ID:body.taskId,TEAM_TOOL_EXECUTOR_ENABLED:'false',TEAM_TOOL_EXECUTOR_RELEASED:'false',TEAM_DB:{prepare(){return {bind(){return {first:async()=>null}}}}},...extra}}
 test('missing persisted owner approval blocks before provider and ledger',async()=>{
  let fetches=0,ledgerAccess=0;
- const env=baseEnv({TEAM_CERT_LEDGER:{idFromName(){ledgerAccess++;return 'id'},get(){ledgerAccess++;return {reserve(){throw Error('no')}}}});
+ const env=baseEnv({TEAM_CERT_LEDGER:{idFromName(){ledgerAccess++;return 'id'},get(){ledgerAccess++;return {reserve(){throw Error('no')}}}}});
  const r=await handleStagingGitHubCertification(req(),env,{fetcher:async()=>{fetches++;throw Error('no')}});
  assert.equal(r.status,403);assert.equal((await r.json()).error,'invalid_grant');assert.equal(fetches,0);assert.equal(ledgerAccess,0);
 });
