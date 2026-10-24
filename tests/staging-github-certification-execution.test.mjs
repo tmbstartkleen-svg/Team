@@ -29,7 +29,7 @@ test('valid persisted grant invokes only the injected durable executor and retur
  assert.equal(executed.taskId,body.taskId);assert.equal(executed.stepId,body.stepId);assert.equal(executed.approval.taskApproved,true);assert.ok(executed.adapters['github.read']);assert.equal(fetches,0);assert.equal(ledgerId,body.taskId);
 });
 test('provider token missing fails before durable execution',async()=>{
- const env=baseEnv({TEAM_DB:{prepare(){return {bind(){return {first:async()=>approvedGrant}}}}}});
+ const env=baseEnv({ TEAM_DB: { prepare: () => ({ bind: () => ({ first: async () => approvedGrant }) }) } });
  const r=await handleStagingGitHubCertification(req(),env,{execute:async()=>{throw Error('must not execute')}});
  assert.equal(r.status,503);assert.equal((await r.json()).error,'github_read_credential_missing');
 });
