@@ -77,7 +77,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -eu
-          npx --yes wrangler@4 d1 execute atlas-team-staging --remote --config wrangler.staging.toml --command "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('team_tasks','team_tool_step_grants','team_tool_action_ledger','team_execution_receipts');"
+          npx --yes wrangler@4 d1 execute atlas-team-staging --remote --config wrangler.staging.toml --command "SELECT CASE WHEN COUNT(*)=4 THEN 'STAGING_SCHEMA_READY' ELSE 'STAGING_SCHEMA_MISSING' END AS status FROM sqlite_master WHERE type='table' AND name IN ('team_tasks','team_tool_step_grants','team_tool_action_ledger','team_execution_receipts');" > /tmp/atlas-staging-schema-check.txt
+          grep -q STAGING_SCHEMA_READY /tmp/atlas-staging-schema-check.txt || { echo "::error::Staging schema not ready; refusing deployment"; exit 1; }
       - name: Validate staging bundle without publishing
         run: npx --yes wrangler@4 deploy --config wrangler.staging.toml --dry-run --outdir /tmp/atlas-team-staging-bundle
       - name: Verify existing staging schema without applying restricted migrations
