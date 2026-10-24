@@ -73,7 +73,7 @@ test('malformed, oversized, and extra-field requests are rejected',async()=>{
  const huge=await handleStagingGitHubCertification(request({}, {raw:' '.repeat(300)}),e,{execute:noExecute});
  assert.equal(huge.status,413);
  const wrongType=await handleStagingGitHubCertification(request(payload,{contentType:'text/plain'}),e,{execute:noExecute});
- // The route does not currently gate on content-type; this valid payload reaches the injected executor, whose failure must be sanitized.
+ // The route currently does not reject content-type; the injected executor fails, and the route must sanitize that failure.
  assert.equal(wrongType.status,502);
  assert.equal((await wrongType.json()).error,'staging_certification_failed');
 });
