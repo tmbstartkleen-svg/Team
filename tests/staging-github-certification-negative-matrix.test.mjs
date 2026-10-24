@@ -73,8 +73,9 @@ test('malformed, oversized, and extra-field requests are rejected',async()=>{
  const huge=await handleStagingGitHubCertification(request({}, {raw:' '.repeat(300)}),e,{execute:noExecute});
  assert.equal(huge.status,413);
  const wrongType=await handleStagingGitHubCertification(request(payload,{contentType:'text/plain'}),e,{execute:noExecute});
- // Handler parses JSON content by size and syntax, but route should not infer approval from content type.
- assert.ok([200,400,403,409,503].includes(wrongType.status));
+ // This fixture has no persisted grant, so even a syntactically valid body cannot reach execution.
+ assert.equal(wrongType.status,403);
+ assert.equal((await wrongType.json()).error,'invalid_grant');
 });
 test('durable executor errors are sanitized and cannot claim successful certification',async()=>{
  const e=env();
