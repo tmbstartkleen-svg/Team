@@ -1,8 +1,9 @@
 name: TEAM verification
 on:
   push:
-    branches: [main]
+    branches: [main, integration/immutable-release-evidence-schema-20261021]
   pull_request:
+  workflow_dispatch:
 jobs:
   check:
     runs-on: ubuntu-latest
