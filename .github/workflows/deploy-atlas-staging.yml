@@ -25,6 +25,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      - name: Verify pinned source provenance before any deployment action
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14" || { echo "::error::Unexpected source revision"; exit 1; }
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Run application and unit tests
@@ -37,7 +41,81 @@ jobs:
         run: |
           set -eu
           test -n "$CF_API_TOKEN" || { echo "::error::Missing Cloudflare deployment credential"; exit 1; }
-          printf '%s' "$CF_ACCOUNT_ID" | grep -Eq '^[0-9a-fA-F]{32}$' || { echo "::error::Invalid Cloudflare account ID"; exit 1; }
+          printf '%s' "$CF_ACCOUNT_ID" | grep -Eq '^[0-9a-fA-F]{32}          printf '%s' "$STAGING_D1_ID" | grep -Eq '^[0-9a-fA-F-]{36}$' || { echo "::error::Invalid isolated staging D1 ID"; exit 1; }
+      - name: Generate isolated staging Worker configuration
+        env:
+          STAGING_D1_ID: 953289d7-463f-4ba0-aa26-eca0ab2076d4
+        run: |
+          set -eu
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('wrangler.toml', 'utf8');
+          const id = process.env.STAGING_D1_ID;
+          if (!/^[0-9a-fA-F-]{36}$/.test(id || '')) throw new Error('staging_database_id_invalid');
+          let config = source.replace(/^name = "atlas-team"$/m, 'name = "atlas-team-staging"');
+          config = config.replace(/^TEAM_GITHUB_CERTIFICATION_TASK_ID = .*\n/m, '');
+          config = config.replace(/^TEAM_GITHUB_READ_REPOSITORIES = .*$/m, 'TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"');
+          config = config.replace(/^TEAM_API_ORIGIN = .*$/m, 'TEAM_API_ORIGIN = "https://team-mmy8kteq3-tmbstartkleen-4716s-projects.vercel.app"');
+          config = config.replace(/^TEAM_INFERENCE_PROVIDER = .*$/m, 'TEAM_INFERENCE_PROVIDER = "cloudflare"\nATLAS_RUNTIME_ENV = "staging"\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_RELEASED = "false"');
+          config += '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-staging"\ndatabase_id = "' + id + '"\n';
+          const required = [
+            'name = "atlas-team-staging"',
+            'ATLAS_RUNTIME_ENV = "staging"',
+            'TEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"',
+            'TEAM_TOOL_EXECUTOR_ENABLED = "false"',
+            'TEAM_TOOL_EXECUTOR_RELEASED = "false"',
+            'TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"',
+            'database_id = "' + id + '"'
+          ];
+          for (const expected of required) {
+            if (!config.includes(expected)) throw new Error('staging_config_invariant_failed');
+          }
+          if (/^name = "atlas-team"$/m.test(config)) throw new Error('production_worker_name_forbidden');
+          if (/^TEAM_GITHUB_CERTIFICATION_TASK_ID\s*=/m.test(config)) throw new Error('historical_certification_id_forbidden');
+          if (config.includes('65bf7866-bc96-400c-bb6f-ead8dfb8e02f')) throw new Error('production_d1_binding_forbidden');
+          fs.writeFileSync('wrangler.staging.toml', config);
+          NODE
+          mkdir -p public
+          cp index.html public/index.html
+      - name: Reject unverified staging schema or wrong database identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 execute atlas-team-staging --remote --config wrangler.staging.toml --command "SELECT CASE WHEN COUNT(*)=4 THEN 'STAGING_SCHEMA_READY' ELSE 'STAGING_SCHEMA_MISSING' END AS status FROM sqlite_master WHERE type='table' AND name IN ('team_tasks','team_tool_step_grants','team_tool_action_ledger','team_execution_receipts');" > /tmp/atlas-staging-schema-check.txt
+          grep -q STAGING_SCHEMA_READY /tmp/atlas-staging-schema-check.txt || { echo "::error::Staging schema not ready; refusing deployment"; exit 1; }
+      - name: Validate staging bundle without publishing
+        run: npx --yes wrangler@4 deploy --config wrangler.staging.toml --dry-run --outdir /tmp/atlas-team-staging-bundle
+      - name: Verify existing staging schema without applying restricted migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          npx --yes wrangler@4 d1 execute atlas-team-staging --remote --config wrangler.staging.toml --command "SELECT name FROM sqlite_master WHERE name='team_tool_step_grants';"
+          echo "Staging core schema was provisioned separately; migrations 0010-0012 require separate owner authorization." >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy isolated staging Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config wrangler.staging.toml
+          wranglerVersion: '4'
+      - name: Keep optional staging credentials isolated and certification disabled
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STAGING_EXECUTOR_TOKEN: ${{ secrets.TEAM_STAGING_EXECUTOR_TOKEN }}
+        run: |
+          set -eu
+          if [ -n "$STAGING_EXECUTOR_TOKEN" ]; then
+            [ "${#STAGING_EXECUTOR_TOKEN}" -ge 32 ] || { echo "::error::Staging executor token too short"; exit 1; }
+            printf '%s' "$STAGING_EXECUTOR_TOKEN" | npx --yes wrangler@4 secret put TEAM_EXECUTOR_TOKEN --config wrangler.staging.toml >/dev/null
+          fi
+          echo "Staging deployed with certification disabled and general executor switches off." >> "$GITHUB_STEP_SUMMARY"
+ || { echo "::error::Invalid Cloudflare account ID"; exit 1; }
+          test "$CF_ACCOUNT_ID" = "de9b84b39940a0b5b622ae5d27b415dc" || { echo "::error::Cloudflare account mismatch; refusing deployment"; exit 1; }
           printf '%s' "$STAGING_D1_ID" | grep -Eq '^[0-9a-fA-F-]{36}$' || { echo "::error::Invalid isolated staging D1 ID"; exit 1; }
       - name: Generate isolated staging Worker configuration
         env:
