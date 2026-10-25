@@ -4,6 +4,53 @@ on:
     branches: [main]
   pull_request:
 jobs:
+  staging-bundle-dry-run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Verify pinned staging source
+        run: test "$(git rev-parse HEAD)" = "8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14"
+      - name: Install pinned source dependencies
+        run: npm install --no-audit --no-fund
+      - name: Prepare static assets
+        run: mkdir -p public && cp index.html public/index.html
+      - name: Generate isolated staging config for non-deploying verification
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          let config = fs.readFileSync('wrangler.toml', 'utf8');
+          const expect = (pattern, replacement) => {
+            if (!pattern.test(config)) throw Error('staging_config_source_missing');
+            config = config.replace(pattern, replacement);
+          };
+          expect(/^name = "atlas-team"$/m, 'name = "atlas-team-staging"');
+          config = config.replace(/^TEAM_GITHUB_CERTIFICATION_TASK_ID = .*\n/m, '');
+          expect(/^TEAM_GITHUB_READ_REPOSITORIES = .*$/m, 'TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"');
+          expect(/^TEAM_API_ORIGIN = .*$/m, 'TEAM_API_ORIGIN = "https://team-mmy8kteq3-tmbstartkleen-4716s-projects.vercel.app"');
+          expect(/^TEAM_INFERENCE_PROVIDER = .*$/m, 'TEAM_INFERENCE_PROVIDER = "cloudflare"\nATLAS_RUNTIME_ENV = "staging"\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_RELEASED = "false"');
+          config += '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-staging"\ndatabase_id = "953289d7-463f-4ba0-aa26-eca0ab2076d4"\n';
+          if (!config.includes('name = "atlas-team-staging"') ||
+              !config.includes('TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"') ||
+              !config.includes('TEAM_API_ORIGIN = "https://team-mmy8kteq3-tmbstartkleen-4716s-projects.vercel.app"') ||
+              !config.includes('ATLAS_RUNTIME_ENV = "staging"') ||
+              !config.includes('TEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"') ||
+              !config.includes('TEAM_TOOL_EXECUTOR_ENABLED = "false"') ||
+              !config.includes('TEAM_TOOL_EXECUTOR_RELEASED = "false"') ||
+              !config.includes('database_name = "atlas-team-staging"') ||
+              config.includes('65bf7866-bc96-400c-bb6f-ead8dfb8e02f') ||
+              /^TEAM_GITHUB_CERTIFICATION_TASK_ID\s*=/m.test(config)) throw Error('staging_isolation_failed');
+          fs.writeFileSync('wrangler.staging.toml', config);
+          NODE
+      - name: Dry-run actual staging Worker bundle without credentials or upload
+        run: npx --yes wrangler@4 deploy --dry-run --config wrangler.staging.toml --outdir /tmp/atlas-pinned-staging-bundle
   check:
     runs-on: ubuntu-latest
     steps:
@@ -13,6 +60,8 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run check
+      - name: Parse isolated staging workflow YAML
+        run: npx --yes prettier@3 .github/workflows/deploy-atlas-staging.yml --parser yaml > /dev/null
       - name: Generate production readiness report
         run: node scripts/report-readiness.mjs
       - name: Upload readiness evidence
