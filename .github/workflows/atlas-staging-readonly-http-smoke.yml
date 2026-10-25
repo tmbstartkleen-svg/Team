@@ -11,36 +11,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe isolated staging health with no credentials or writes
+      - name: Check isolated staging Worker health and database readiness (GET only)
         env:
           STAGING_ORIGIN: https://atlas-team-staging.tmbstartkleen.workers.dev
         run: |
           set -eu
-          for path in /__team/health /api/health /health; do
-            echo "::group::GET $path"
-            status="$(curl --silent --show-error --location --max-redirs 0 --connect-timeout 5 --max-time 12 --retry 1 --retry-delay 2 --output /tmp/atlas-staging-health.json --write-out '%{http_code}' "$STAGING_ORIGIN$path" || true)"
-            echo "HTTP status: $status"
-            if [ "$status" = "200" ]; then
-              if node -e '
-                const fs = require("node:fs");
-                let obj;
-                try { obj = JSON.parse(fs.readFileSync("/tmp/atlas-staging-health.json", "utf8")); }
-                catch { process.exit(1); }
-                const service = String(obj.service || "");
-                const runtime = String(obj.environment || obj.runtime || obj.runtimeEnvironment || obj.runtime_env || "");
-                const provesStaging = runtime.toLowerCase() === "staging" || service === "atlas-team-staging";
-                if (obj.ok !== true || !provesStaging) process.exit(1);
-                console.log(JSON.stringify({ok:true,service,runtime,checkedPath:process.env.HEALTH_PATH || ""}));
-              '; then
-                echo "Staging identity and live health confirmed."
-                echo "Isolated staging health: PASS ($path)" >> "$GITHUB_STEP_SUMMARY"
-                echo "::endgroup::"
-                exit 0
-              fi
-              echo "HTTP 200 returned, but JSON does not prove isolated staging health."
-            fi
-            echo "::endgroup::"
-          done
-          echo "::error::No read-only health endpoint returned an HTTP 200 JSON object proving staging identity and ok=true."
-          echo "Isolated staging health: NOT CERTIFIED" >> "$GITHUB_STEP_SUMMARY"
-          exit 1
+          health_status="$(curl --silent --show-error --max-redirs 0 --connect-timeout 5 --max-time 15 --output /tmp/atlas-staging-health.json --write-out '%{http_code}' "$STAGING_ORIGIN/__team/health")"
+          [ "$health_status" = 200 ] || { echo "::error::Staging edge health HTTP $health_status"; exit 1; }
+          node -e '
+            const fs=require("node:fs");
+            const d=JSON.parse(fs.readFileSync("/tmp/atlas-staging-health.json","utf8"));
+            if(d.ok!==true || d.service!=="atlas-team-edge" || d.hosting!=="cloudflare") process.exit(1);
+            console.log("ATLAS Cloudflare edge health: PASS");
+          '
+          database_status="$(curl --silent --show-error --max-redirs 0 --connect-timeout 5 --max-time 15 --output /tmp/atlas-staging-db-readiness.json --write-out '%{http_code}' "$STAGING_ORIGIN/api/database-readiness")"
+          [ "$database_status" = 200 ] || { echo "::error::Staging database readiness HTTP $database_status"; exit 1; }
+          node -e '
+            const fs=require("node:fs");
+            const d=JSON.parse(fs.readFileSync("/tmp/atlas-staging-db-readiness.json","utf8"));
+            if(d.ok!==true || d.hosting!=="cloudflare" || d.agentsActive!==false || !d.database || typeof d.database!=="object") process.exit(1);
+            console.log("ATLAS Cloudflare database readiness: PASS (agents inactive)");
+          '
+          echo "Cloudflare Worker health and database readiness: PASS (GET-only)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Staging **identity and binding** must additionally be confirmed by the Cloudflare Worker settings API; these HTTP endpoints do not expose the runtime environment or D1 UUID." >> "$GITHUB_STEP_SUMMARY"
