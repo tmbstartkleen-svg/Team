@@ -62,6 +62,22 @@ jobs:
       - run: npm run check
       - name: Parse isolated staging workflow YAML
         run: npx --yes prettier@3 .github/workflows/deploy-atlas-staging.yml --parser yaml > /dev/null
+      - name: Reject automatic production deployment triggers
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const workflow = fs.readFileSync('.github/workflows/deploy-cloudflare.yml', 'utf8');
+          const header = workflow.slice(0, workflow.indexOf('concurrency:'));
+          if (!/^  workflow_dispatch:$/m.test(header) ||
+              !/deploy_production:/m.test(header) ||
+              !/default: false/m.test(header) ||
+              /^  (push|schedule|pull_request):/m.test(header) ||
+              !/if: \$\{\{ github.event_name == 'workflow_dispatch' && inputs.deploy_production == true \}\}/.test(workflow) ||
+              !/environment: atlas-production/m.test(workflow)) {
+            throw Error('production_deployment_not_manual_only');
+          }
+          console.log('Production deployment is manual only and requires explicit approval input.');
+          NODE
       - name: Generate production readiness report
         run: node scripts/report-readiness.mjs
       - name: Upload readiness evidence
