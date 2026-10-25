@@ -37,7 +37,7 @@ jobs:
         run: |
           set -eu
           test -n "$CF_API_TOKEN" || { echo "::error::Missing Cloudflare deployment credential"; exit 1; }
-          printf '%s' "$CF_ACCOUNT_ID" | grep -Eq '^[0-9a-fA-F]{32}
+          printf '%s' "$CF_ACCOUNT_ID" | grep -Eq '^[0-9a-fA-F]{32}; exit 1; }
           printf '%s' "$STAGING_D1_ID" | grep -Eq '^[0-9a-fA-F-]{36}$' || { echo "::error::Invalid isolated staging D1 ID"; exit 1; }
       - name: Generate isolated staging Worker configuration
         env:
@@ -111,7 +111,7 @@ jobs:
             printf '%s' "$STAGING_EXECUTOR_TOKEN" | npx --yes wrangler@4 secret put TEAM_EXECUTOR_TOKEN --config wrangler.staging.toml >/dev/null
           fi
           echo "Staging deployed with certification disabled and general executor switches off." >> "$GITHUB_STEP_SUMMARY"
- || { echo "::error::Cloudflare account ID must contain 32 hexadecimal characters"; exit 1; }
+ || { echo "::error::Invalid Cloudflare account ID"; exit 1; }
           printf '%s' "$STAGING_D1_ID" | grep -Eq '^[0-9a-fA-F-]{36}$' || { echo "::error::Invalid isolated staging D1 ID"; exit 1; }
       - name: Generate isolated staging Worker configuration
         env:
