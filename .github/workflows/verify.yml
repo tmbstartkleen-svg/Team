@@ -22,8 +22,27 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Prepare static assets
         run: mkdir -p public && cp index.html public/index.html
-      - name: Dry-run Cloudflare Worker bundle without credentials or upload
-        run: npx --yes wrangler@4 deploy --dry-run --config wrangler.toml --outdir /tmp/atlas-pinned-source-bundle
+      - name: Generate isolated staging config for non-deploying verification
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          let config = fs.readFileSync('wrangler.toml', 'utf8');
+          const expect = (pattern, replacement) => {
+            if (!pattern.test(config)) throw Error('staging_config_source_missing');
+            config = config.replace(pattern, replacement);
+          };
+          expect(/^name = "atlas-team"$/m, 'name = "atlas-team-staging"');
+          config = config.replace(/^TEAM_GITHUB_CERTIFICATION_TASK_ID = .*\n/m, '');
+          expect(/^TEAM_INFERENCE_PROVIDER = .*$/m, 'TEAM_INFERENCE_PROVIDER = "cloudflare"\nATLAS_RUNTIME_ENV = "staging"\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_RELEASED = "false"');
+          config += '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-staging"\ndatabase_id = "953289d7-463f-4ba0-aa26-eca0ab2076d4"\n';
+          if (!config.includes('name = "atlas-team-staging"') ||
+              !config.includes('database_name = "atlas-team-staging"') ||
+              config.includes('65bf7866-bc96-400c-bb6f-ead8dfb8e02f') ||
+              /^TEAM_GITHUB_CERTIFICATION_TASK_ID\s*=/m.test(config)) throw Error('staging_isolation_failed');
+          fs.writeFileSync('wrangler.staging.toml', config);
+          NODE
+      - name: Dry-run actual staging Worker bundle without credentials or upload
+        run: npx --yes wrangler@4 deploy --dry-run --config wrangler.staging.toml --outdir /tmp/atlas-pinned-staging-bundle
   check:
     runs-on: ubuntu-latest
     steps:
