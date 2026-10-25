@@ -1,0 +1,46 @@
+name: ATLAS isolated staging live HTTP smoke
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: atlas-staging-readonly-http-smoke
+  cancel-in-progress: false
+jobs:
+  staging-http-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe isolated staging health with no credentials or writes
+        env:
+          STAGING_ORIGIN: https://atlas-team-staging.tmbstartkleen.workers.dev
+        run: |
+          set -eu
+          for path in /__team/health /api/health /health; do
+            echo "::group::GET $path"
+            status="$(curl --silent --show-error --location --max-redirs 0 --connect-timeout 5 --max-time 12 --retry 1 --retry-delay 2 --output /tmp/atlas-staging-health.json --write-out '%{http_code}' "$STAGING_ORIGIN$path" || true)"
+            echo "HTTP status: $status"
+            if [ "$status" = "200" ]; then
+              if node -e '
+                const fs = require("node:fs");
+                let obj;
+                try { obj = JSON.parse(fs.readFileSync("/tmp/atlas-staging-health.json", "utf8")); }
+                catch { process.exit(1); }
+                const service = String(obj.service || "");
+                const runtime = String(obj.environment || obj.runtime || obj.runtimeEnvironment || obj.runtime_env || "");
+                const provesStaging = runtime.toLowerCase() === "staging" || service === "atlas-team-staging";
+                if (obj.ok !== true || !provesStaging) process.exit(1);
+                console.log(JSON.stringify({ok:true,service,runtime,checkedPath:process.env.HEALTH_PATH || ""}));
+              '; then
+                echo "Staging identity and live health confirmed."
+                echo "Isolated staging health: PASS ($path)" >> "$GITHUB_STEP_SUMMARY"
+                echo "::endgroup::"
+                exit 0
+              fi
+              echo "HTTP 200 returned, but JSON does not prove isolated staging health."
+            fi
+            echo "::endgroup::"
+          done
+          echo "::error::No read-only health endpoint returned an HTTP 200 JSON object proving staging identity and ok=true."
+          echo "Isolated staging health: NOT CERTIFIED" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
