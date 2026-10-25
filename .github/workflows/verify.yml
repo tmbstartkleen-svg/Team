@@ -33,9 +33,17 @@ jobs:
           };
           expect(/^name = "atlas-team"$/m, 'name = "atlas-team-staging"');
           config = config.replace(/^TEAM_GITHUB_CERTIFICATION_TASK_ID = .*\n/m, '');
+          expect(/^TEAM_GITHUB_READ_REPOSITORIES = .*$/m, 'TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"');
+          expect(/^TEAM_API_ORIGIN = .*$/m, 'TEAM_API_ORIGIN = "https://team-mmy8kteq3-tmbstartkleen-4716s-projects.vercel.app"');
           expect(/^TEAM_INFERENCE_PROVIDER = .*$/m, 'TEAM_INFERENCE_PROVIDER = "cloudflare"\nATLAS_RUNTIME_ENV = "staging"\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_RELEASED = "false"');
           config += '\n[[d1_databases]]\nbinding = "TEAM_DB"\ndatabase_name = "atlas-team-staging"\ndatabase_id = "953289d7-463f-4ba0-aa26-eca0ab2076d4"\n';
           if (!config.includes('name = "atlas-team-staging"') ||
+              !config.includes('TEAM_GITHUB_READ_REPOSITORIES = "tmbstartkleen-svg/Team"') ||
+              !config.includes('TEAM_API_ORIGIN = "https://team-mmy8kteq3-tmbstartkleen-4716s-projects.vercel.app"') ||
+              !config.includes('ATLAS_RUNTIME_ENV = "staging"') ||
+              !config.includes('TEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"') ||
+              !config.includes('TEAM_TOOL_EXECUTOR_ENABLED = "false"') ||
+              !config.includes('TEAM_TOOL_EXECUTOR_RELEASED = "false"') ||
               !config.includes('database_name = "atlas-team-staging"') ||
               config.includes('65bf7866-bc96-400c-bb6f-ead8dfb8e02f') ||
               /^TEAM_GITHUB_CERTIFICATION_TASK_ID\s*=/m.test(config)) throw Error('staging_isolation_failed');
