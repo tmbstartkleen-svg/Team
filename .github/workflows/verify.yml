@@ -13,6 +13,8 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run check
+      - name: Parse isolated staging workflow YAML
+        run: npx --yes prettier@3 .github/workflows/deploy-atlas-staging.yml --parser yaml > /dev/null
       - name: Generate production readiness report
         run: node scripts/report-readiness.mjs
       - name: Upload readiness evidence
