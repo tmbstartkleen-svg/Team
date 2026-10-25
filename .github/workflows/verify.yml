@@ -4,6 +4,26 @@ on:
     branches: [main]
   pull_request:
 jobs:
+  staging-bundle-dry-run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Verify pinned staging source
+        run: test "$(git rev-parse HEAD)" = "8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14"
+      - name: Install pinned source dependencies
+        run: npm install --no-audit --no-fund
+      - name: Prepare static assets
+        run: mkdir -p public && cp index.html public/index.html
+      - name: Dry-run Cloudflare Worker bundle without credentials or upload
+        run: npx --yes wrangler@4 deploy --dry-run --config wrangler.toml --outdir /tmp/atlas-pinned-source-bundle
   check:
     runs-on: ubuntu-latest
     steps:
