@@ -1,16 +1,20 @@
 name: Deploy TEAM to Cloudflare
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '15 14 * * *'
+    inputs:
+      deploy_production:
+        description: "Explicitly authorize production Cloudflare deployment"
+        type: boolean
+        required: true
+        default: false
 concurrency:
   group: atlas-team-cloudflare-production
   cancel-in-progress: false
 jobs:
   verify-and-deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_production == true }}
     runs-on: ubuntu-latest
+    environment: atlas-production
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
