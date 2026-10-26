@@ -1,6 +1,11 @@
 name: ATLAS staging evidence migration preflight (read-only)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/atlas-staging-evidence-migration-preflight.yml'
+      - 'lib/certification-schema-preflight.mjs'
 permissions:
   contents: read
 jobs:
@@ -39,10 +44,10 @@ jobs:
             if(text(flag)!=='false')throw Error('execution_not_disabled_'+flag);
           }
           const d1=bindings.find(b=>b.name==='TEAM_DB'&&b.type==='d1');
-          if(d1?.id!==stagingDb)throw Error('wrong_staging_database_binding');
+          if(d1?.id!==stagingDb||d1?.database_id!==stagingDb)throw Error('wrong_staging_database_binding');
           const query=async(sql)=>{
             // Cloudflare D1 query API uses HTTP POST but only SELECT/PRAGMA statements are passed.
-            if(!/^\s*(SELECT|PRAGMA (table_info|foreign_key_check))\b/i.test(sql))throw Error('non_readonly_sql_denied');
+            if(!/^\s*(SELECT|PRAGMA (table_info|foreign_key_check))\b/i.test(sql)||sql.includes(';'))throw Error('non_readonly_sql_denied');
             const response=await fetch(base+'/d1/database/'+stagingDb+'/query',{
               method:'POST',headers,body:JSON.stringify({sql}),signal:AbortSignal.timeout(15000)
             });
