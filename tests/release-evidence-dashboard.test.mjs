@@ -106,3 +106,17 @@ test('dashboard fails closed with generic error when readiness inspection throws
  assert.equal(parsed.launchAuthorized,false);
  assert.equal(result.headers.get('cache-control'),'no-store');
 });
+
+test('successful GET exposes only non-secret release status fields',async()=>{
+ const result=await handleReleaseEvidenceDashboard(new Request('https://example.test/api/release-evidence-dashboard'),{});
+ assert.equal(result.status,200);
+ assert.equal(result.headers.get('cache-control'),'no-store');
+ assert.equal(result.headers.get('x-content-type-options'),'nosniff');
+ const body=await result.json();
+ assert.equal(body.readOnly,true);
+ assert.equal(body.launchAuthorized,false);
+ assert.equal(body.productionOperational,false);
+ assert.equal(body.safety.generalExecutionNeverEnabledByThisEndpoint,true);
+ assert.equal('credentials' in body,false);
+ assert.equal('operatorGrants' in body,false);
+});
