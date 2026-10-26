@@ -120,3 +120,13 @@ test('successful GET exposes only non-secret release status fields',async()=>{
  assert.equal('credentials' in body,false);
  assert.equal('operatorGrants' in body,false);
 });
+
+test('query-string approval or production flags cannot authorize the read-only endpoint',async()=>{
+ const result=await handleReleaseEvidenceDashboard(new Request('https://example.test/api/release-evidence-dashboard?approved=true&launchAuthorized=true&productionOperational=true&agentsActive=true'),{});
+ assert.equal(result.status,200);
+ const body=await result.json();
+ assert.equal(body.launchAuthorized,false);
+ assert.equal(body.productionOperational,false);
+ assert.equal(body.certificationStatus,'blocked');
+ assert.equal(body.readOnly,true);
+});
