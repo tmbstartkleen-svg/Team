@@ -53,3 +53,19 @@ test('missing CI, main merge or deployed worker keeps reliability milestone open
   assert.ok(x.releaseEvidence.missing.includes(key));
  }
 });
+
+test('missing evidence and readiness gates are explicitly described',()=>{
+ const x=summarizeReleaseEvidence({launch:blocked});
+ assert.equal(x.outstandingEvidenceCount,RELEASE_EVIDENCE_REQUIREMENTS.length);
+ assert.deepEqual(x.requiredGateStatus,[{id:'database-binding',status:'ready'},{id:'approved-agent-execution',status:'blocked'}]);
+ assert.ok(x.certificationMilestones.every(m=>m.evidenceStatus==='unverified'));
+ assert.equal(x.launchAuthorized,false);
+});
+test('evidence metadata cannot change runtime readiness gate statuses',()=>{
+ const evidence=Object.fromEntries(RELEASE_EVIDENCE_REQUIREMENTS.map(k=>[k,{verified:true,reference:'immutable-proof-id'}]));
+ const x=summarizeReleaseEvidence({launch:blocked,releaseEvidence:evidence});
+ assert.equal(x.outstandingEvidenceCount,0);
+ assert.ok(x.certificationMilestones.every(m=>m.evidenceStatus==='verified'));
+ assert.equal(x.requiredGateStatus.find(g=>g.id==='approved-agent-execution').status,'blocked');
+ assert.equal(x.launchAuthorized,false);
+});
