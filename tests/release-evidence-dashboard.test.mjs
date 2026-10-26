@@ -27,6 +27,9 @@ test('public GET is read-only and never accepts submitted approval',async()=>{
  assert.equal(x.readOnly,true);assert.equal(x.launchAuthorized,false);
  assert.equal(x.safety.ownerApprovalRequired,true);
  assert.equal(x.remainingMilestones,5);
+ assert.equal(x.outstandingEvidenceCount,RELEASE_EVIDENCE_REQUIREMENTS.length);
+ assert.equal(x.releaseEvidence.verified,0);
+ assert.ok(x.certificationMilestones.every(m=>m.evidenceStatus==='unverified'));
  assert.equal(JSON.stringify(x).includes('immutable-proof-id'),false);
 });
 test('POST rejected without invoking persistence',async()=>{
