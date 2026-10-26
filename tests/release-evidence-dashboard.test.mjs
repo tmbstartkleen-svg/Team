@@ -95,9 +95,9 @@ test('read-only response never reveals configured owner credentials',async()=>{
 });
 
 test('dashboard fails closed with generic error when readiness inspection throws',async()=>{
- const result=await handleReleaseEvidenceDashboard(new Request('https://example.test/api/release-evidence-dashboard'),{
-  TEAM_DB:{prepare(){throw new Error('private_schema_detail_or_secret')}}
- });
+ const env={};
+ Object.defineProperty(env,'TEAM_DB',{get(){throw new Error('private_schema_detail_or_secret')}});
+ const result=await handleReleaseEvidenceDashboard(new Request('https://example.test/api/release-evidence-dashboard'),env);
  assert.equal(result.status,503);
  const body=await result.text();
  assert.equal(body.includes('private_schema_detail_or_secret'),false);
