@@ -63,7 +63,7 @@ jobs:
           if (persona.ok !== true || persona.executorActive !== false || persona.taskExecutionAllowed !== false || persona.inferenceVerified !== false) throw new Error('staging_persona_execution_safety_regression');
           if (launch.ok !== true || launch.hosting !== 'cloudflare' || launch.productionOperational !== false || launch.agentsActive !== false || launch.betaReady !== false) throw new Error('staging_launch_gate_safety_regression');
           if (github.ok !== true || github.executionReleased !== false) throw new Error('github_tool_release_safety_regression');
-          if (lookup.get('database-binding').ready !== true || lookup.get('database-schema').ready !== true) throw new Error('staging_core_database_regression');
+          if (lookup.get('database-binding').ready !== true || lookup.get('database-schema').ready !== true || lookup.get('executor-database-schema').ready !== true) throw new Error('staging_executor_database_schema_regression');
           const incomplete = checks.filter((x) => x.required && !x.ready).map((x) => x.id);
           console.log(JSON.stringify({safe:true,liveExecutionEnabled:false,requiredGatesStillUnmet:incomplete},null,2));
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
