@@ -1,0 +1,67 @@
+name: ATLAS staging evidence migration preflight (read-only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    environment: atlas-staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Inspect isolated staging Worker binding and migration prerequisites without writes
+        run: |
+          set -eu
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {inspectCertificationSchemaPreflight} from './lib/certification-schema-preflight.mjs';
+          const account='de9b84b39940a0b5b622ae5d27b415dc';
+          const stagingDb='953289d7-463f-4ba0-aa26-eca0ab2076d4';
+          const token=process.env.CLOUDFLARE_API_TOKEN;
+          if(!token||process.env.CLOUDFLARE_ACCOUNT_ID!==account)throw Error('missing_or_wrong_account_credentials');
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account;
+          const headers={authorization:'Bearer '+token,'content-type':'application/json'};
+          const settingsResponse=await fetch(base+'/workers/scripts/atlas-team-staging/settings',{headers,signal:AbortSignal.timeout(15000)});
+          if(!settingsResponse.ok)throw Error('staging_settings_http_'+settingsResponse.status);
+          const settings=await settingsResponse.json();
+          if(settings.success!==true)throw Error('staging_settings_query_failed');
+          const bindings=settings.result?.bindings||[];
+          const text=name=>bindings.find(b=>b.name===name&&b.type==='plain_text')?.text;
+          if(text('ATLAS_RUNTIME_ENV')!=='staging')throw Error('not_staging_worker');
+          for(const flag of ['TEAM_TOOL_EXECUTOR_ENABLED','TEAM_TOOL_EXECUTOR_RELEASED','TEAM_STAGING_GITHUB_CERTIFICATION_ENABLED']){
+            if(text(flag)!=='false')throw Error('execution_not_disabled_'+flag);
+          }
+          const d1=bindings.find(b=>b.name==='TEAM_DB'&&b.type==='d1');
+          if(d1?.id!==stagingDb)throw Error('wrong_staging_database_binding');
+          const query=async(sql)=>{
+            // Cloudflare D1 query API uses HTTP POST but only SELECT/PRAGMA statements are passed.
+            if(!/^\s*(SELECT|PRAGMA (table_info|foreign_key_check))\b/i.test(sql))throw Error('non_readonly_sql_denied');
+            const response=await fetch(base+'/d1/database/'+stagingDb+'/query',{
+              method:'POST',headers,body:JSON.stringify({sql}),signal:AbortSignal.timeout(15000)
+            });
+            if(!response.ok)throw Error('staging_D1_http_'+response.status);
+            const payload=await response.json();
+            if(payload.success!==true||!Array.isArray(payload.result)||payload.result.some(x=>x.success===false))throw Error('staging_D1_query_failed');
+            return {results:payload.result.flatMap(x=>x.results||[])};
+          };
+          const db={prepare(sql){return {all:async()=>query(sql)}}};
+          const result=await inspectCertificationSchemaPreflight(db);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
+            '## Isolated staging evidence migration preflight','',
+            '- Result: '+(result.ok?'PASS (review eligible)':'BLOCKED: '+result.reason),
+            '- Cloudflare staging Worker and exact staging D1 binding: verified',
+            '- All general and certification execution flags: disabled',
+            '- Schema changes and D1 writes: none',
+            '- Owner approval to migrate: NOT GRANTED',
+            '- Live agent execution certified: NO',''
+          ].join('\n'));
+          if(!result.ok)throw Error('migration_prerequisites_'+result.reason);
+          console.log('PASS: isolated staging D1 review prerequisites; no migration or execution performed.');
+          NODE
