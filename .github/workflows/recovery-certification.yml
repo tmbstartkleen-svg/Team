@@ -1,6 +1,16 @@
 name: TEAM Recovery Certification
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/recovery-certification.yml'
+      - 'lib/d1-task-queue.mjs'
+      - 'lib/durable-tool-execution.mjs'
+      - 'lib/d1-execution-receipts.mjs'
+      - 'tests/d1-lease-recovery*.test.mjs'
+      - 'tests/d1-receipt-sqlite-integration.test.mjs'
+      - 'tests/durable-replay-denial-v2.test.mjs'
 permissions:
   contents: read
 jobs:
@@ -15,7 +25,7 @@ jobs:
       - name: Test bounded lease recovery on an isolated SQLite database
         run: |
           set -eu
-          node --test tests/d1-lease-recovery.test.mjs tests/d1-lease-recovery-sqlite-integration.test.mjs tests/d1-receipt-sqlite-integration.test.mjs
+          node --test tests/d1-lease-recovery.test.mjs tests/d1-lease-recovery-sqlite-integration.test.mjs tests/d1-receipt-sqlite-integration.test.mjs tests/durable-replay-denial-v2.test.mjs
       - name: Emit certification evidence
         env:
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -23,6 +33,6 @@ jobs:
         run: |
           node <<'NODE'
           const fs=require('node:fs');
-          const summary='## TEAM recovery certification\n\n- Result: PASS\n- Evidence ID: '+process.env.GITHUB_RUN_ID+'\n- Commit: '+process.env.GITHUB_SHA+'\n- Scope: isolated lease-recovery and in-memory SQLite transaction tests\n- Production D1 writes: none\n- Production recovery certification: NOT CERTIFIED by this isolated test\n';
+          const summary='## TEAM recovery certification\n\n- Result: PASS\n- Evidence ID: '+process.env.GITHUB_RUN_ID+'\n- Commit: '+process.env.GITHUB_SHA+'\n- Scope: isolated lease recovery, SQLite receipts, and in-memory replay-denial safety tests\n- Production D1 writes: none\n- Production recovery certification: NOT CERTIFIED by this isolated test\n';
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
           NODE
