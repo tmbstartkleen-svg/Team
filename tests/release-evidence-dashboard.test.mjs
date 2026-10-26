@@ -69,3 +69,7 @@ test('evidence metadata cannot change runtime readiness gate statuses',()=>{
  assert.equal(x.requiredGateStatus.find(g=>g.id==='approved-agent-execution').status,'blocked');
  assert.equal(x.launchAuthorized,false);
 });
+
+test('duplicate gate identifiers fail closed rather than hiding conflicting status',()=>{
+ assert.throws(()=>summarizeReleaseEvidence({launch:{...blocked,checks:[...blocked.checks,{id:'database-binding',required:true,ready:false}]}}),/invalid_gate_id/);
+});
