@@ -39,3 +39,41 @@ jobs:
           '
           echo "Cloudflare Worker health and database readiness: PASS (GET-only)." >> "$GITHUB_STEP_SUMMARY"
           echo "Staging **identity and binding** must additionally be confirmed by the Cloudflare Worker settings API; these HTTP endpoints do not expose the runtime environment or D1 UUID." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Assess workforce safety and incomplete launch gates (GET only)
+        env:
+          STAGING_ORIGIN: https://atlas-team-staging.tmbstartkleen.workers.dev
+        run: |
+          set -eu
+          for endpoint in persona-execution-readiness launch-readiness github-tool-readiness; do
+            status="$(curl --silent --show-error --max-redirs 0 --connect-timeout 5 --max-time 15 --output "/tmp/atlas-$endpoint.json" --write-out '%{http_code}' "$STAGING_ORIGIN/api/$endpoint")"
+            [ "$status" = 200 ] || { echo "::error::GET /api/$endpoint returned HTTP $status"; exit 1; }
+          done
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const read = (name) => JSON.parse(fs.readFileSync('/tmp/atlas-' + name + '.json', 'utf8'));
+          const persona = read('persona-execution-readiness');
+          const launch = read('launch-readiness');
+          const github = read('github-tool-readiness');
+          const checks = Array.isArray(launch.checks) ? launch.checks : [];
+          const ids = ['database-binding', 'database-schema', 'executor-database-schema', 'approved-agent-execution', 'persistent-task-recovery', 'end-to-end-certification'];
+          const lookup = new Map(checks.map((x) => [x.id, x]));
+          const requiredMissing = ids.filter((x) => !lookup.has(x));
+          if (requiredMissing.length) throw new Error('launch_gate_inventory_missing:' + requiredMissing.join(','));
+          if (persona.ok !== true || persona.executorActive !== false || persona.taskExecutionAllowed !== false || persona.inferenceVerified !== false) throw new Error('staging_persona_execution_safety_regression');
+          if (launch.ok !== true || launch.hosting !== 'cloudflare' || launch.productionOperational !== false || launch.agentsActive !== false || launch.betaReady !== false) throw new Error('staging_launch_gate_safety_regression');
+          if (github.ok !== true || github.executionReleased !== false) throw new Error('github_tool_release_safety_regression');
+          if (lookup.get('database-binding').ready !== true || lookup.get('database-schema').ready !== true) throw new Error('staging_core_database_regression');
+          const incomplete = checks.filter((x) => x.required && !x.ready).map((x) => x.id);
+          console.log(JSON.stringify({safe:true,liveExecutionEnabled:false,requiredGatesStillUnmet:incomplete},null,2));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            '### Staging workforce read-only readiness',
+            '',
+            '- Live endpoints: persona-execution-readiness, launch-readiness, github-tool-readiness',
+            '- Executor inactive; inference not certified; production operational false',
+            '- Core D1 binding and schema: verified',
+            '- Remaining required gates: ' + incomplete.join(', '),
+            '- No approval, grants, executions, or mutations performed',
+            ''
+          ].join('\n'));
+          NODE
