@@ -73,3 +73,23 @@ test('evidence metadata cannot change runtime readiness gate statuses',()=>{
 test('duplicate gate identifiers fail closed rather than hiding conflicting status',()=>{
  assert.throws(()=>summarizeReleaseEvidence({launch:{...blocked,checks:[...blocked.checks,{id:'database-binding',required:true,ready:false}]}}),/invalid_gate_id/);
 });
+
+test('unsupported HTTP methods reject before reading database state',async()=>{
+ for(const method of ['PUT','PATCH','DELETE']){
+  let touched=false;
+  const env={TEAM_DB:{prepare(){touched=true;throw Error('unexpected_database_access')}}};
+  const result=await handleReleaseEvidenceDashboard(new Request('https://example.test/api/release-evidence-dashboard',{method}),env);
+  assert.equal(result.status,405);
+  assert.equal(result.headers.get('allow'),'GET');
+  assert.equal(result.headers.get('cache-control'),'no-store');
+  assert.equal(touched,false);
+ }
+});
+test('read-only response never reveals configured owner credentials',async()=>{
+ const secret='S'.repeat(48);
+ const result=await handleReleaseEvidenceDashboard(new Request('https://example.test/api/release-evidence-dashboard'),{TEAM_OWNER_API_TOKEN:secret});
+ assert.equal(result.status,200);
+ const body=await result.text();
+ assert.equal(body.includes(secret),false);
+ assert.equal(JSON.parse(body).launchAuthorized,false);
+});
