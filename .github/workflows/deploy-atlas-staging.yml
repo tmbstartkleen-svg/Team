@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: 8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14
+          ref: 4ef0f8e8d3addb75479183e96ad78435d0d15008
           persist-credentials: false
       - uses: actions/setup-node@v5
         with:
@@ -28,7 +28,7 @@ jobs:
       - name: Verify pinned source provenance before any deployment action
         run: |
           set -eu
-          test "$(git rev-parse HEAD)" = "8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14" || { echo "::error::Unexpected source revision"; exit 1; }
+          test "$(git rev-parse HEAD)" = "4ef0f8e8d3addb75479183e96ad78435d0d15008" || { echo "::error::Unexpected source revision"; exit 1; }
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Run application and unit tests
