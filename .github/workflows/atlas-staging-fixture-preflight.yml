@@ -1,0 +1,65 @@
+name: ATLAS staging certification fixture preflight
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-staging-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: atlas-staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_D1_ID: 953289d7-463f-4ba0-aa26-eca0ab2076d4
+      CERT_TASK_ID: cert-atlas-staging-recovery-20261026-v1
+    steps:
+      - name: Validate staging credentials and immutable account identity
+        run: |
+          set -eu
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test "$CLOUDFLARE_ACCOUNT_ID" = "de9b84b39940a0b5b622ae5d27b415dc"
+          test "$STAGING_D1_ID" = "953289d7-463f-4ba0-aa26-eca0ab2076d4"
+          test "$CERT_TASK_ID" = "cert-atlas-staging-recovery-20261026-v1"
+      - name: Read task, approval, receipts and action counts (no writes)
+        run: |
+          set -eu
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const {CLOUDFLARE_API_TOKEN:token,CLOUDFLARE_ACCOUNT_ID:account,STAGING_D1_ID:id,CERT_TASK_ID:taskId}=process.env;
+          const sql=`SELECT id,state,owner_approved,attempt_count,lease_token,completion_evidence FROM team_tasks WHERE id='${taskId}'`;
+          const countSql=`SELECT
+            (SELECT COUNT(*) FROM team_approval_audit WHERE task_id='${taskId}') AS fixture_approvals,
+            (SELECT COUNT(*) FROM team_execution_receipts WHERE task_id='${taskId}') AS fixture_receipts,
+            (SELECT COUNT(*) FROM team_tool_action_ledger WHERE task_id='${taskId}') AS fixture_actions,
+            (SELECT COUNT(*) FROM team_tasks WHERE id='cert-github-read-20261019-v2') AS protected_task_rows`;
+          async function query(statement){
+            const response=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${id}/query`,{
+              method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
+              body:JSON.stringify({sql:statement}),signal:AbortSignal.timeout(15000)
+            });
+            if(!response.ok)throw Error('D1 read request failed: HTTP '+response.status);
+            const result=await response.json();
+            if(!result.success||!result.result?.every(x=>x.success!==false))throw Error('D1 read query failed');
+            return result.result.flatMap(x=>x.results||[]);
+          }
+          const tasks=await query(sql);
+          const counts=(await query(countSql))[0];
+          if(tasks.length!==1||!counts)throw Error('staging fixture missing');
+          const task=tasks[0];
+          if(task.id!==taskId||task.state!=='queued'||task.owner_approved!==0||
+             task.attempt_count!==0||task.lease_token!=null||task.completion_evidence!=null||
+             counts.fixture_approvals!==0||counts.fixture_receipts!==0||counts.fixture_actions!==0||
+             counts.protected_task_rows!==0)throw Error('staging fixture approval or execution boundary changed');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
+            '## Staging fixture preparation: PASS','',
+            '- Exact task: `'+taskId+'`',
+            '- State: queued; owner approval: false; attempts: 0',
+            '- Task approval/receipt/action rows: 0 / 0 / 0',
+            '- Protected historical certification task: absent from isolated staging D1',
+            '- Read-only D1 queries; no approvals or agent execution',
+            '- Live operational certification: NOT COMPLETE',
+            ''
+          ].join('\n'));
+          console.log('PASS: isolated staging certification fixture is queued and unapproved; no task execution evidence exists.');
+          NODE
