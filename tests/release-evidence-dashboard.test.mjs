@@ -93,3 +93,16 @@ test('read-only response never reveals configured owner credentials',async()=>{
  assert.equal(body.includes(secret),false);
  assert.equal(JSON.parse(body).launchAuthorized,false);
 });
+
+test('dashboard fails closed with generic error when readiness inspection throws',async()=>{
+ const result=await handleReleaseEvidenceDashboard(new Request('https://example.test/api/release-evidence-dashboard'),{
+  TEAM_DB:{prepare(){throw new Error('private_schema_detail_or_secret')}}
+ });
+ assert.equal(result.status,503);
+ const body=await result.text();
+ assert.equal(body.includes('private_schema_detail_or_secret'),false);
+ const parsed=JSON.parse(body);
+ assert.equal(parsed.productionOperational,false);
+ assert.equal(parsed.launchAuthorized,false);
+ assert.equal(result.headers.get('cache-control'),'no-store');
+});
