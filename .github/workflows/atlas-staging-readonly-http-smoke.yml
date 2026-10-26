@@ -1,6 +1,11 @@
 name: ATLAS isolated staging live HTTP smoke
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/atlas-staging-readonly-http-smoke.yml'
+      - '.github/workflows/deploy-atlas-staging.yml'
 permissions:
   contents: read
 concurrency:
