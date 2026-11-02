@@ -7,6 +7,14 @@ test('exactly copied branch and tag refs match',()=>{
  const map=parseRemoteRefs(txt);assert.equal(map.size,2);
  assert.equal(compareMirrorRefs(map,new Map(map)).exactMatch,true);
 });
+test('annotated tag peeled refs are ignored; tag object SHA stays authoritative',()=>{
+ const output=a+'\trefs/heads/main\n'+b+'\trefs/tags/v1\n'+a+'\trefs/tags/v1^{}\n';
+ const refs=parseRemoteRefs(output);
+ assert.equal(refs.size,2);
+ assert.equal(refs.get('refs/tags/v1'),b);
+ const other=parseRemoteRefs(a+'\trefs/heads/main\n'+a+'\trefs/tags/v1\n'+a+'\trefs/tags/v1^{}\n');
+ assert.equal(compareMirrorRefs(refs,other).exactMatch,false);
+});
 test('missing, mismatched and extra refs are reported without writes',()=>{
  const left=new Map([['refs/heads/main',a],['refs/tags/v1',b]]);
  const right=new Map([['refs/heads/main',b],['refs/heads/test',a]]);
