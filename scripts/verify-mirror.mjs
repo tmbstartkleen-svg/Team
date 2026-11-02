@@ -10,6 +10,9 @@ export function parseRemoteRefs(output){
   if(!line.trim())continue;
   const match=/^([0-9a-f]{40})\t(refs\/(?:heads|tags)\/[^\s]+)$/.exec(line);
   if(!match)throw new TypeError('invalid_remote_ref');
+  // Annotated tags include peeled ^{} lines. Compare tag object IDs,
+  // not dereferenced commit IDs; the peeled line is derivative metadata.
+  if(match[2].startsWith('refs/tags/')&&match[2].endsWith('^{}'))continue;
   if(refs.has(match[2])&&refs.get(match[2])!==match[1])throw new TypeError('ambiguous_remote_ref');
   refs.set(match[2],match[1]);
  }
