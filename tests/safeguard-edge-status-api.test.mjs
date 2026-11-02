@@ -17,7 +17,7 @@ test('authenticated but unconfigured edge status stays fail-closed',async()=>{
  assert.equal(res.status,503);assert.equal(calls,0);
 });
 test('authenticated status returns only projected public fields',async()=>{
- const fetcher=async url=>({ok:true,headers:{get:()=> 'application/json'},json:async()=>url.includes('public-status')?{ok:true,connected:true,lastSeen:'2026-11-01T00:00:00Z',key:'hidden'}:{ok:true,service:'safeguard',ready:true,token:'hidden'}});
+ const fetcher=async url=>({ok:true,headers:{get:()=> 'application/json'},json:async()=>url.includes('public-status')?{ok:true,connected:true,lastSeen:new Date().toISOString(),key:'hidden'}:{ok:true,service:'safeguard',ready:true,token:'hidden'}});
  const res=await handleSafeguardEdgeStatus(new Request('https://team.example.com/api/safeguard-status',{headers:{Authorization:'Bearer '+env.TEAM_OWNER_API_TOKEN}}),env,{fetcher});
  const data=await res.json();assert.equal(res.status,200);assert.equal(data.operational,true);
  assert.equal(JSON.stringify(data).includes('hidden'),false);
