@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS team_specialist_learning (
  id TEXT NOT NULL,
  owner_id TEXT NOT NULL REFERENCES team_memory_consent(owner_id) ON DELETE CASCADE,
- specialist_id TEXT NOT NULL CHECK(specialist_id IN ('mba','sports-guru','al-detector','fsqa-manager','sanitation-regional','coding-execution')),
+ specialist_id TEXT NOT NULL CHECK(specialist_id IN ('mba','sports-guru','al-detector','fsqa-manager','sanitation-regional','coding-execution','cybersecurity-lead')),
  type TEXT NOT NULL CHECK(type IN ('owner-correction','cited-source','verified-outcome','evaluation-result')),
  summary TEXT NOT NULL CHECK(length(summary) BETWEEN 5 AND 1000),
  evidence_ref TEXT NOT NULL CHECK(length(evidence_ref) BETWEEN 1 AND 128),
