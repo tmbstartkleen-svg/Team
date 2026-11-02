@@ -14,6 +14,11 @@ test('missing, mismatched and extra refs are reported without writes',()=>{
  assert.deepEqual(r.missing,['refs/tags/v1']);assert.equal(r.mismatched.length,1);
  assert.deepEqual(r.extra,['refs/heads/test']);assert.equal(r.exactMatch,false);
 });
+test('empty or branchless remote listings fail closed',()=>{
+ assert.throws(()=>compareMirrorRefs(new Map(),new Map()),/empty_remote_refs/);
+ assert.throws(()=>compareMirrorRefs(new Map([['refs/heads/main','a'.repeat(40)]]),new Map()),/empty_remote_refs/);
+ assert.throws(()=>compareMirrorRefs(new Map([['refs/tags/v1','a'.repeat(40)]]),new Map([['refs/tags/v1','a'.repeat(40)]])),/main_ref_missing/);
+});
 test('reject untrusted repo URLs, options, and malformed refs',()=>{
  for(const s of ['https://github.com/x/y','-help/x','owner/repo.git?token=1','../../bad','x/..','x'])assert.throws(()=>validateRepoSlug(s));
  assert.equal(validateRepoSlug('tmbstartkleen-svg/Team'),'tmbstartkleen-svg/Team');
