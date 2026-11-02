@@ -14,3 +14,8 @@ test('find exact duplicate tracked files without modifying them',()=>{
  assert.deepEqual(result.forbidden,[]);
  assert.equal(result.trackedFiles,3);
 });
+
+test('nested coverage route is source, top-level coverage remains generated',()=>{
+ assert.equal(isGeneratedOrSensitivePath('app/api/coverage/route.js'),false);
+ assert.equal(isGeneratedOrSensitivePath('coverage/report.json'),true);
+});
