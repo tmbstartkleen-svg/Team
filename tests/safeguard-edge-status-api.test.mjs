@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {handleSafeguardEdgeStatus} from '../lib/safeguard-edge-status-api.mjs';
-const env={TEAM_OWNER_API_TOKEN:'A'.repeat(40),ATLAS_SAFEGUARD_BASE_URL:'https://safeguard.example.com/',ATLAS_SAFEGUARD_PUBLIC_CHANNEL:'sensor-1'};
+const env={TEAM_OWNER_API_TOKEN:'A'.repeat(40),ATLAS_SAFEGUARD_BASE_URL:'https://safeguard.example.com/',ATLAS_SAFEGUARD_ALLOWED_ORIGIN:'https://safeguard.example.com/',ATLAS_SAFEGUARD_PUBLIC_CHANNEL:'sensor-1'};
 test('unauthenticated edge requests never query Safeguard',async()=>{
  let calls=0;const fetcher=async()=>{calls++;throw Error('unexpected call')};
  const res=await handleSafeguardEdgeStatus(new Request('https://team.example.com/api/safeguard-status'),env,{fetcher});
