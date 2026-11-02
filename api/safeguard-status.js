@@ -6,6 +6,7 @@ export default async function handler(req,res){
  if(!authorize(req))return respond(res,401,{ok:false,error:'unauthorized'});
  const result=await readSafeguardSnapshot({
   baseUrl:process.env.ATLAS_SAFEGUARD_BASE_URL,
+  allowedOrigin:process.env.ATLAS_SAFEGUARD_ALLOWED_ORIGIN,
   channel:process.env.ATLAS_SAFEGUARD_PUBLIC_CHANNEL
  });
  return respond(res,result.ok?200:503,result);
