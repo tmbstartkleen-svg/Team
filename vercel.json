@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/readiness",
+      "destination": "/api/diagnostics?_atlas_route=readiness"
+    },
+    {
+      "source": "/api/safeguard-status",
+      "destination": "/api/diagnostics?_atlas_route=safeguard-status"
+    },
+    {
+      "source": "/api/safeguard-security-feed",
+      "destination": "/api/diagnostics?_atlas_route=safeguard-security-feed"
+    }
+  ]
+}
