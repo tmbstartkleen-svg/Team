@@ -6,9 +6,10 @@
 On Cloudflare ATLAS Worker, configure secrets/settings via the hosting provider:
 - `TEAM_OWNER_API_TOKEN`: existing owner authorization token, minimum 32 characters. Do not include it in the repository or UI.
 - `ATLAS_SAFEGUARD_BASE_URL`: HTTPS origin of the existing Safeguard deployment. No path/query, redirects, IP literals, localhost or private-name hosts.
+- `ATLAS_SAFEGUARD_ALLOWED_ORIGIN`: a separately configured exact HTTPS origin that must match `ATLAS_SAFEGUARD_BASE_URL`; mismatches or missing pins fail closed.
 - `ATLAS_SAFEGUARD_PUBLIC_CHANNEL`: existing Safeguard channel identifier, configured on the server only. Never expose channel or sensor pairing secret in UI.
 
-On Vercel ATLAS standby use `TEAM_ADMIN_TOKEN` instead of `TEAM_OWNER_API_TOKEN` alongside the two `ATLAS_SAFEGUARD_*` variables. The two hosting authentication systems are not automatically the same.
+On Vercel ATLAS standby use `TEAM_ADMIN_TOKEN` instead of `TEAM_OWNER_API_TOKEN` alongside all three `ATLAS_SAFEGUARD_*` variables. The two hosting authentication systems are not automatically the same.
 
 The dashboard Security Operations tab accepts the appropriate ATLAS token for its current host and makes a GET to `/api/safeguard-status`. The token is not persisted in local storage by that form.
 
@@ -20,7 +21,7 @@ The adapter reads only:
 It never calls Safeguard's `GET /api/monitoring/status`, which can change alert state as a side effect. No sensor keys or network commands are involved. Outputs are projected onto an allowlist of service readiness, last seen, sensor connection state and version. No untrusted upstream fields are returned.
 
 ## Security and release gates
-- Verify target deployment origin and DNS are organization-controlled; the current URL guard rejects obvious unsafe host forms but is **not a complete DNS rebinding or SSRF mitigation**. Restrict outbound origins via operational egress controls or a trusted host allowlist before enabling arbitrary configuration.
+- Verify target deployment origin and DNS are organization-controlled; the current URL guard and exact-origin pin reject unexpected configured origins but are **not a complete DNS rebinding or SSRF mitigation**. Restrict outbound origins via operational egress controls or a trusted host allowlist before enabling arbitrary configuration.
 - The read endpoint must remain owner-authenticated. Do not expose the channel or pairing secret to browser clients.
 - Validate expiry/freshness and sample heartbeat behavior in a real staged environment. A service marked ready is not proof of endpoint-to-endpoint sensor continuity.
 - Perform a reviewed offline test run: `node --test tests/safeguard-*.test.mjs tests/unified-capability-policy.test.mjs` and check all other baseline tests.
