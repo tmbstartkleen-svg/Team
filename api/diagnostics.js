@@ -6,10 +6,10 @@ import {emptySafeguardSecurityFeed} from '../lib/safeguard-security-feed-project
 // Fail closed on unexpected paths; never relay the sensor key or raw evidence.
 const allowed=new Set(['/api/readiness','/api/safeguard-status','/api/safeguard-security-feed']);
 export default async function handler(req,res){
- const path=new URL(req.url||'/', 'https://atlas.invalid').pathname;
- // The private dispatch header is set only by server-side rewrite configuration.
- const route=(req.headers['x-atlas-diagnostic-route']||'').toString();
- const selected=allowed.has(route)?route:path;
+ const url=new URL(req.url||'/', 'https://atlas.invalid');
+ // Rewrites preserve a fixed route selector. All choices require owner auth.
+ const route=url.searchParams.get('_atlas_route');
+ const selected=route?'/api/'+route:url.pathname;
  if(!allowed.has(selected))return respond(res,404,{ok:false,error:'not_found'});
  if(!method(req,res,['GET']))return;
  if(!authorize(req))return respond(res,401,{ok:false,error:'unauthorized'});
