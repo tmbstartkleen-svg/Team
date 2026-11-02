@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {LAUNCH_SPECIALISTS,LAUNCH_SPECIALIST_IDS,specialistById} from '../lib/launch-specialists.mjs';
 import {routeTask,SPECIALISTS} from '../lib/route.mjs';
-test('six named launch specialists have unique ids and route registrations',()=>{
- assert.equal(LAUNCH_SPECIALISTS.length,6);assert.equal(new Set(LAUNCH_SPECIALIST_IDS).size,6);
+test('all named launch specialists have unique ids and route registrations',()=>{
+ assert.equal(LAUNCH_SPECIALISTS.length,7);assert.equal(new Set(LAUNCH_SPECIALIST_IDS).size,6);
  const ids=new Set(SPECIALISTS.map(p=>p.id));
  for(const p of LAUNCH_SPECIALISTS){assert.equal(ids.has(p.id),true);assert.ok(p.verification);assert.ok(p.offline);}
  assert.equal(specialistById('unknown'),null);
