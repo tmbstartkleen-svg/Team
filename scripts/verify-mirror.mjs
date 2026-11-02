@@ -2,7 +2,7 @@
 import {execFileSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-const REPO=/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const REPO=/^[A-Za-z0-9_][A-Za-z0-9_.-]*\/[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
 export function parseRemoteRefs(output){
  if(typeof output!=='string')throw new TypeError('invalid_refs');
  const refs=new Map();
