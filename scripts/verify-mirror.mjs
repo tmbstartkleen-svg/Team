@@ -17,6 +17,8 @@ export function parseRemoteRefs(output){
 }
 export function compareMirrorRefs(source,destination){
  if(!(source instanceof Map)||!(destination instanceof Map))throw new TypeError('invalid_ref_maps');
+ if(source.size===0||destination.size===0)throw new TypeError('empty_remote_refs');
+ if(!source.has('refs/heads/main')||!destination.has('refs/heads/main'))throw new TypeError('main_ref_missing');
  const missing=[],mismatched=[],extra=[];
  for(const [ref,sha] of source){
   if(!destination.has(ref))missing.push(ref);
