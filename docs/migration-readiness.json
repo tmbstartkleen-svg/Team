@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "sourceRepo": "tmbstartkleen-svg/Team",
+  "destinationRepo": "",
+  "gates": {
+    "source_history_mirrored": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "destination_ownership_verified": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "isolated_preview_build": {
+      "status": "blocked",
+      "evidence": "Vercel preview reports Resource provisioning failed; build logs empty."
+    },
+    "read_only_api_smoke": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "owner_auth_negative_tests": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "security_evidence_integrity": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "database_backup_restore": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "safeguard_sensor_continuity": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "secrets_rotated_securely": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "cutover_rollback_rehearsed": {
+      "status": "unknown",
+      "evidence": ""
+    },
+    "owner_cutover_approval": {
+      "status": "unknown",
+      "evidence": ""
+    }
+  }
+}
