@@ -77,7 +77,7 @@ jobs:
           config = config.replace(/^TEAM_GITHUB_CERTIFICATION_TASK_ID = .*\n/m,'');
           config = config.replace(/^TEAM_API_ORIGIN = .*\n/m,'');
           if (!/^\[vars\]$/m.test(config)) throw Error('vars_section_missing');
-          config = config.replace(/^\[vars\]$/m,'[vars]\\nATLAS_RUNTIME_ENV = "staging"\\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\\nTEAM_TOOL_EXECUTOR_RELEASED = "false"\\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"');
+          config = config.replace(/^\[vars\]$/m,'[vars]\nATLAS_RUNTIME_ENV = "staging"\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_RELEASED = "false"\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"');
           if (config.includes('TEAM_GITHUB_CERTIFICATION_TASK_ID =') ||
               !config.includes('TEAM_TOOL_EXECUTOR_RELEASED = "false"')) throw Error('unsafe_stage_config');
           fs.writeFileSync('wrangler.pr-verify.toml',config);
