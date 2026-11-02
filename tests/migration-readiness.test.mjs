@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assessMigration,REQUIRED_GATES} from '../scripts/migration-readiness.mjs';
+import {readFileSync} from 'node:fs';
 const mk=()=>({schemaVersion:1,sourceRepo:'tmbstartkleen-svg/Team',destinationRepo:'',
  gates:Object.fromEntries(REQUIRED_GATES.map(id=>[id,{status:'unknown',evidence:''}]))});
 test('default state blocks cutover and never allows source deletion',()=>{
