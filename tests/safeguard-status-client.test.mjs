@@ -9,8 +9,10 @@ test('blocks local, insecure, parameterized and credentialed URLs',()=>{
 test('makes exactly two GET calls without secrets or redirect-following',async()=>{
  const calls=[];const now=new Date().toISOString();
  const fetcher=async(url,opts)=>{calls.push({url,opts});return reply(url.includes('public-status')?{ok:true,connected:true,lastSeen:now,version:'v1',channel:'secret'}:{ok:true,service:'safeguard',ready:true,version:'v9'});};
- const out=await readSafeguardSnapshot({baseUrl:'https://safeguard.example.com/',channel:'sensor-a',fetcher});
+ const out=await readSafeguardSnapshot({baseUrl:'https://safeguard.example.com/',allowedOrigin:'https://safeguard.example.com/',channel:'sensor-a',fetcher});
  assert.equal(out.ok,true);assert.equal(out.operational,true);
+ assert.equal(calls.length,2);
+ assert.equal((await readSafeguardSnapshot({baseUrl:'https://safeguard.example.com/',allowedOrigin:'https://different.example.com/',channel:'sensor-a',fetcher})).error,'safeguard_adapter_not_configured');
  assert.equal(calls.length,2);
  assert.ok(calls.every(c=>c.opts.method==='GET'&&c.opts.redirect==='error'&&!('x-sentinel-key' in c.opts.headers)));
  assert.equal(JSON.stringify(out).includes('sensor-a'),false);assert.equal(JSON.stringify(out).includes('secret'),false);
