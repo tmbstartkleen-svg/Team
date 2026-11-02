@@ -28,3 +28,11 @@ It never calls Safeguard's `GET /api/monitoring/status`, which can change alert 
 - Verify both Cloudflare and Vercel previews before production. The current Vercel provisioning failure is unrelated to proven application test results and must be diagnosed separately.
 - Safeguard's standalone dashboard, sensor LaunchAgent and Keychain identity remain operational throughout dual run.
 - Keep PR #170 draft; no merge, deployment promotion, repo deletion, data migration or protected task approval until the owner authorizes the exact operation.
+
+## Alerts and evidence Phase 2 (contract only)
+
+`lib/safeguard-security-feed-projection.mjs` adds pure metadata projections for monitoring alerts and evidence-chain entries. The allowlist **excludes** alert messages, targets, evidence payloads, sensor identities, pairing keys, and raw response documents. Evidence integrity is reported as an upstream assertion, **not** independently verified by ATLAS.
+
+The existing Safeguard endpoints `GET /api/monitoring` and `GET /api/evidence` demand `x-sentinel-key`, which is the sensor-pairing credential. **Do not configure that key in ATLAS.** `GET /api/monitoring/status` additionally performs writes and must never be used for a read-only dashboard.
+
+Until Safeguard implements and certifies a new least-privilege, owner-authorized read-only export endpoint with a separately scoped credential and an auditable authorization model, the ATLAS alert/evidence feed must return a non-connected state. Do not represent it as zero incidents or zero evidence. Treat migration of evidence content separately, with explicit owner approval and encryption/retention controls.
