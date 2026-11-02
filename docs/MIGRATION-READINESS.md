@@ -35,3 +35,10 @@ npm test
 npm run audit:migration
 ```
 The second command intentionally exits 2 in the currently blocked state. It only reports readiness, never performs migration.
+
+## Read-only Git mirror comparison
+Run `npm run audit:mirror -- tmbstartkleen-svg/Team AUTHORIZED-OWNER/NEW-REPO` **only after the owner has created/connected the authorized destination**. This command reads branches and tags with `git ls-remote --heads --tags`, compares reference names and SHA-1 object IDs, and exits 2 if mismatched. It never pushes, creates a repository, or copies data. For private destinations, use Git's existing authorized credential helper: never place secrets in command arguments or URLs.
+
+Exact refs alone do not verify GitHub issues, PR review history, webhooks, Actions secrets, deploy keys, branch protections, release attachments, or database / object storage content. Complete those reviews before a migration is considered operationally certified.
+
+The `tests/verify-mirror.test.mjs` checks exact matching, missing/mismatched/extra refs, and unsafe repository slug rejection.
