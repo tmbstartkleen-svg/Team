@@ -2,7 +2,6 @@ import {pathToFileURL} from 'node:url';
 import {resolve} from 'node:path';
 // Read-only repository hygiene check. Does not delete, rewrite or upload files.
 import {execFileSync} from 'node:child_process';
-import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 export function isGeneratedOrSensitivePath(path){
  if(typeof path!=='string')return false;
@@ -28,7 +27,9 @@ export function auditTrackedFiles(paths,readFile){
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
  const names=execFileSync('git',['ls-files','--cached','-z'],{maxBuffer:16*1024*1024}).toString('utf8').split('\0').filter(Boolean);
- const report=auditTrackedFiles(names,path=>readFileSync(path));
+ // Compare Git-index contents, not uncommitted working-tree changes. Paths come
+ // directly from git ls-files, never from untrusted external input.
+ const report=auditTrackedFiles(names,path=>execFileSync('git',['show',':'+path],{maxBuffer:64*1024*1024}));
  process.stdout.write(JSON.stringify(report,null,2)+'\n');
  if(report.forbidden.length)process.exitCode=1;
 }
