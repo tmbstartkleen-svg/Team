@@ -8,7 +8,8 @@
     "check": "node --check lib/route.mjs && node --check lib/database.mjs && node --check lib/server-auth.mjs && node --check api/tasks.js && node --check api/approve.js && node --check api/events.js && node --check api/execute-approved.js && node --check api/model-policy.js && node --test tests/*.test.mjs",
     "db:verify": "node scripts/setup-database.mjs --verify-only",
     "db:setup": "node scripts/setup-database.mjs",
-    "audit:repo": "node scripts/repo-hygiene-audit.mjs"
+    "audit:repo": "node scripts/repo-hygiene-audit.mjs",
+    "audit:migration": "node scripts/migration-readiness.mjs"
   },
   "engines": {
     "node": ">=20"
