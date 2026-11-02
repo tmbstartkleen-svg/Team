@@ -51,6 +51,39 @@ jobs:
           NODE
       - name: Dry-run actual staging Worker bundle without credentials or upload
         run: npx --yes wrangler@4 deploy --dry-run --config wrangler.staging.toml --outdir /tmp/atlas-pinned-staging-bundle
+  pr-head-bundle-dry-run:
+    # Validate the actual PR commit without touching the pinned certification fixture.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install dependencies for local compile only
+        run: npm install --no-audit --no-fund
+      - name: Prepare temporary static assets
+        run: mkdir -p public && cp index.html public/index.html
+      - name: Create isolated no-production staging config
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const original = fs.readFileSync('wrangler.toml','utf8');
+          if (!/^name = "atlas-team"$/m.test(original)) throw Error('expected_worker_name_missing');
+          let config = original.replace(/^name = "atlas-team"$/m,'name = "atlas-team-pr-verify"');
+          config = config.replace(/^TEAM_GITHUB_CERTIFICATION_TASK_ID = .*\n/m,'');
+          config = config.replace(/^TEAM_API_ORIGIN = .*\n/m,'');
+          config += '\n[env.pr_verify.vars]\nATLAS_RUNTIME_ENV = "staging"\nTEAM_TOOL_EXECUTOR_ENABLED = "false"\nTEAM_TOOL_EXECUTOR_RELEASED = "false"\nTEAM_STAGING_GITHUB_CERTIFICATION_ENABLED = "false"\n';
+          if (config.includes('TEAM_GITHUB_CERTIFICATION_TASK_ID =') ||
+              !config.includes('TEAM_TOOL_EXECUTOR_RELEASED = "false"')) throw Error('unsafe_stage_config');
+          fs.writeFileSync('wrangler.pr-verify.toml',config);
+          NODE
+      - name: Compile PR head without upload or credentials
+        run: npx --yes wrangler@4 deploy --dry-run --config wrangler.pr-verify.toml --outdir /tmp/atlas-pr-head-bundle
+
   check:
     runs-on: ubuntu-latest
     steps:
