@@ -19,3 +19,6 @@ test('nested coverage route is source, top-level coverage remains generated',()=
  assert.equal(isGeneratedOrSensitivePath('app/api/coverage/route.js'),false);
  assert.equal(isGeneratedOrSensitivePath('coverage/report.json'),true);
 });
+
+// The actual Git index is the audit authority; unsaved local edits are excluded.
+// Regression verified separately via the read-only CLI in an isolated Git repository.
