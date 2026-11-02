@@ -26,4 +26,14 @@ test('all verified requires destination and still forbids automatic retirement',
  const r=assessMigration(m);assert.equal(r.readyForCutover,true);
  assert.equal(r.mayDeleteSource,false);assert.equal(r.requiresSeparateRetirementApproval,true);
 });
+test('committed migration manifest cannot silently certify destination or owner approval',()=>{
+ const m=JSON.parse(readFileSync(new URL('../docs/migration-readiness.json',import.meta.url),'utf8'));
+ const r=assessMigration(m);
+ assert.equal(r.readyForCutover,false);
+ assert.equal(r.mayDeleteSource,false);
+ assert.equal(m.destinationRepo,'');
+ assert.equal(r.verified.length,0);
+ assert.ok(r.blocked.includes('isolated_preview_build'));
+ assert.ok(r.unknown.includes('owner_cutover_approval'));
+});
 test('missing checks fail closed',()=>{const m=mk();delete m.gates.database_backup_restore;assert.throws(()=>assessMigration(m),/invalid_gate/);});
