@@ -37,3 +37,10 @@ Do not delete source or security-related workflows merely because import referen
 5. **Do not delete or archive Safeguard** before Mac sensor continuity, credential rotation, evidence integrity, backup restoration and standalone fallback are certified.
 
 The reserved `cert-github-read-20261019-v2` task remains **queued, unapproved and unexecuted**. This audit must not change authorization, deployment or execution flags.
+
+## Latest verification notes
+- The hygiene audit now compares **staged Git index blobs**, not potentially modified working-tree contents. This prevents uncommitted local edits from changing the reported tracked snapshot.
+- The CLI's entrypoint uses `pathToFileURL(resolve(process.argv[1]))` so npm / relative invocations can execute correctly.
+- A top-level `coverage/` folder is treated as generated output, but a nested `app/api/.../coverage/` route is valid source.
+- Three isolated Node tests passed; an isolated Git-index CLI run reported two tracked test files, no forbidden tracked file names, and no duplicates. This is **not** a full Team repository verification.
+- Vercel preview inspected at deployment `dpl_MNncUSDHDhyNfgGjQdceDjWtFBDN`: status `BUILD_FAILED`, message `Resource provisioning failed`, and no build-log events available. Root cause not established; do not misattribute to the cleanup.
