@@ -1,11 +1,23 @@
 # ATLAS TEAM
 
-Independent AI workforce command center.
+ATLAS is an owner-governed AI workforce workspace, with Cloudflare as the primary edge interface and Vercel as a standby backend. The platform has local UI, planning, task-routing, server API, authorization and certification components. Individual modules do **not** prove production-ready autonomous agent execution.
 
-This repository is separate from SafeGuard and EdgeForce.
+## Repositories and migration status
 
-## Build 1
+- **ATLAS / Team (this repository):** owner workspace and orchestrator.
+- **Safeguard (separate repository):** security operations platform, authenticated Mac sensor, local Keychain identity, incident/evidence history and recovery procedures. **Keep this repository and service operational.**
+- **EdgeForce (separate repository):** sports intelligence. Not part of this cleanup.
 
-Static web application prototype with persona directory, projects, tasks, orchestration concepts, model routing, offline planning and local browser storage.
+ATLAS + Safeguard convergence is currently under development and review in [Team PR #170](https://github.com/tmbstartkleen-svg/Team/pull/170) and [Safeguard PR #84](https://github.com/tmbstartkleen-svg/Safeguard/pull/84). Both are drafts; this cleanup does **not** merge, deploy or authorize them.
 
-Open `index.html` to run locally. Real AI inference, backend authentication and hosted runtime are not yet connected.
+## What is safe to do
+
+- Run project tests locally with `npm test` (Node 20+).
+- Use `index.html` as a prototype UI; offline browser-local state is not production persistence.
+- Review [release gates](docs/RELEASE-GATES.md), [Cloudflare runbook](docs/cloudflare-primary-runbook.md) and [integration plan](https://github.com/tmbstartkleen-svg/Team/blob/feature/atlas-unified-workforce-security-foundation/docs/atlas-safeguard-unification-plan.md).
+
+## Repository hygiene
+
+Build 6 and Build 15 documentation represented early milestones and has been removed from the active tree after a reference check. The files remain recoverable from Git history. Existing migrations, CI workflows, security tests, certification records, rollback code and sensor integration requirements are intentionally preserved.
+
+**Do not delete/archive Safeguard** until production parity, protected secret handling, data export/restore, Mac sensor continuity, offline/reconnection behavior and rollback have been independently tested and owner-approved. Removing a GitHub repository never uninstalls a Mac sensor or guarantees personal data deletion.
