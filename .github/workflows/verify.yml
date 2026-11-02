@@ -94,6 +94,8 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run check
+      - name: Audit Git-tracked repository artifacts and secrets
+        run: npm run audit:repo
       - name: Parse isolated staging workflow YAML
         run: npx --yes prettier@3 .github/workflows/deploy-atlas-staging.yml --parser yaml > /dev/null
       - name: Reject automatic production deployment triggers
