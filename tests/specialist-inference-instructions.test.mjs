@@ -4,7 +4,7 @@ import {LAUNCH_SPECIALISTS} from '../lib/launch-specialists.mjs';
 import {resolveSpecialistInstructions,buildPersonaSystemInstructions} from '../lib/specialist-inference-instructions.mjs';
 import {generateApprovedPersonaAnalysis} from '../lib/cloudflare-persona-provider.mjs';
 import {generateWorkersPersonaAnalysis} from '../lib/workers-ai-persona-provider.mjs';
-test('all six launch roles have dedicated instructions without tool authorization',()=>{
+test('all launch roles have dedicated instructions without tool authorization',()=>{
  for(const p of LAUNCH_SPECIALISTS){
   assert.equal(resolveSpecialistInstructions(p.id).id,p.id);
   assert.equal(resolveSpecialistInstructions(p.name).id,p.id);
