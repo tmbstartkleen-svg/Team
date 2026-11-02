@@ -3,10 +3,22 @@ import assert from 'node:assert/strict';
 import {saveSpecialistLearningProposal,listSpecialistLearningProposals,revokeSpecialistLearning} from '../lib/d1-specialist-learning.mjs';
 const proposal={id:'source-1',specialistId:'cybersecurity-lead',type:'owner-correction',summary:'Preserve monitored security evidence',evidenceRef:'audit-1'};
 function fakeDb({consent=1,changes=1}={}){
- const calls=[];return {calls,prepare(sql){return {bind(...params){calls.push({sql,params});return {
-  first:async()=>({enabled:consent}),run:async()=>({success:true,meta:{changes}}),
-  all:async()=>({results:[{id:'source-1',state:'proposed'}]})
- };}}}}};
+ const calls=[];
+ return {
+  calls,
+  prepare(sql){
+   return {
+    bind(...params){
+     calls.push({sql,params});
+     return {
+      first:async()=>({enabled:consent}),
+      run:async()=>({success:true,meta:{changes}}),
+      all:async()=>({results:[{id:'source-1',state:'proposed'}]})
+     };
+    }
+   };
+  }
+ };
 }
 test('requires database consent before storing a proposal',async()=>{
  const db=fakeDb({consent:0});
