@@ -9,7 +9,8 @@
     "db:verify": "node scripts/setup-database.mjs --verify-only",
     "db:setup": "node scripts/setup-database.mjs",
     "audit:repo": "node scripts/repo-hygiene-audit.mjs",
-    "audit:migration": "node scripts/migration-readiness.mjs"
+    "audit:migration": "node scripts/migration-readiness.mjs",
+    "audit:mirror": "node scripts/verify-mirror.mjs"
   },
   "engines": {
     "node": ">=20"
