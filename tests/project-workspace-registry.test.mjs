@@ -6,6 +6,7 @@ test('unified registry preserves all 15 source repositories',()=>{
  assert.equal(new Set(PROJECT_WORKSPACES.map(p=>p.repo)).size,15);
  for(const p of listProjectWorkspaces()){assert.equal(p.canExecute,false);assert.equal(p.canDelete,false);assert.equal(p.connection,'not_independently_verified');}
 });
+test('security workspace remains independent with dedicated lead',()=>{const p=listProjectWorkspaces('security');assert.equal(p.length,1);assert.equal(p[0].repo,'tmbstartkleen-svg/Safeguard');assert.equal(p[0].leader,'cybersecurity-lead');assert.equal(p[0].canDelete,false);});
 test('sports workspaces are grouped but not migrated',()=>{
  const sports=listProjectWorkspaces('sports');
  assert.equal(sports.length,5);
