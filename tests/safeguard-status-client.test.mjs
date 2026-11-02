@@ -21,5 +21,5 @@ test('invalid configuration and upstream failures fail closed',async()=>{
  let calls=0;const fetcher=async()=>{calls++;throw new Error('offline')};
  assert.equal((await readSafeguardSnapshot({baseUrl:'https://localhost/',channel:'a',fetcher})).error,'safeguard_adapter_not_configured');
  assert.equal(calls,0);
- assert.equal((await readSafeguardSnapshot({baseUrl:'https://example.com/',channel:'a',fetcher})).error,'safeguard_status_unavailable');
+ assert.equal((await readSafeguardSnapshot({baseUrl:'https://example.com/',allowedOrigin:'https://example.com/',channel:'a',fetcher})).error,'safeguard_status_unavailable');
 });
