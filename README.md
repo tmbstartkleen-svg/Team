@@ -18,6 +18,6 @@ ATLAS + Safeguard convergence is currently under development and review in [Team
 
 ## Repository hygiene
 
-The Build 6 and Build 15 notes and superseded standalone architecture document were removed from the proposed active tree after reference checks. The files remain recoverable from Git history. Local secrets, build outputs, test coverage, and transient logs are excluded by the updated `.gitignore`; this does not delete any existing local files. Existing migrations, CI workflows, security tests, certification records, rollback code and sensor integration requirements are intentionally preserved.
+Five obsolete documents (the Build 6 and Build 15 notes, superseded standalone architecture, historical Build 75 production gate, and historical Build 90 launch milestones) were removed from the proposed active tree after reference checks. The files remain recoverable from Git history. Local secrets, build outputs, test coverage, and transient logs are excluded by the updated `.gitignore`; this does not delete any existing local files. Existing migrations, CI workflows, security tests, certification records, rollback code and sensor integration requirements are intentionally preserved.
 
 **Do not delete/archive Safeguard** until production parity, protected secret handling, data export/restore, Mac sensor continuity, offline/reconnection behavior and rollback have been independently tested and owner-approved. Removing a GitHub repository never uninstalls a Mac sensor or guarantees personal data deletion.
