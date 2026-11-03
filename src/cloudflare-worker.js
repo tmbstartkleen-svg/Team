@@ -1,3 +1,5 @@
+import {handleSafeguardSecurityFeed} from '../lib/safeguard-security-feed-api.mjs';
+import {handleSafeguardEdgeStatus} from '../lib/safeguard-edge-status-api.mjs';
 export {CertificationLedger} from '../lib/certification-durable-ledger.mjs';
 import {githubReadConnectivityPreflight} from '../lib/github-read-connectivity-preflight.mjs';
 import {inspectCertificationLedger} from '../lib/certification-ledger-inspection-api.mjs';
@@ -30,6 +32,8 @@ export default {
  async fetch(request,env){
   const url=new URL(request.url);
   if(url.pathname==='/__team/health')return new Response(JSON.stringify({ok:true,service:'atlas-team-edge',hosting:'cloudflare',backend:'vercel-standby',backendVerified:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
+  if(url.pathname==='/api/safeguard-security-feed')return handleSafeguardSecurityFeed(request,env);
+  if(url.pathname==='/api/safeguard-status')return handleSafeguardEdgeStatus(request,env);
   if(url.pathname==='/api/health'&&request.method==='GET')return new Response(JSON.stringify({ok:true,service:'atlas-team',hosting:'cloudflare',mode:'edge-ui-with-standby-api',productionOperational:false,modelConfigured:false,executionConfigured:false,databaseSchemaVerified:false,backendVerified:false,microsoft365Connected:false,monitoringActive:false}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'}});
   if(url.pathname==='/release-console')return handleReleaseOperatorConsole(request);
   if(url.pathname==='/api/release-evidence-dashboard')return handleReleaseEvidenceDashboard(request,env);
