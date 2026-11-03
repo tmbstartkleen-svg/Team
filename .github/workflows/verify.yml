@@ -11,13 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: 8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Verify pinned staging source
-        run: test "$(git rev-parse HEAD)" = "8d4d40a6d290b1bb31cfe9b332e9c21f08ac6f14"
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - name: Install pinned source dependencies
         run: npm install --no-audit --no-fund
       - name: Prepare static assets
